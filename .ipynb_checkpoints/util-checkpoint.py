@@ -23,8 +23,8 @@ def schedule_harvest_areacontrol(fm, max_harvest, period=None, acode='harvest', 
         if not target_masks: # default to AU-wise THLB 
             au_vals = []
             au_agg = []
-            for au in fm.theme_basecodes(2):
-                mask = '? 1 %s ? ?' % au
+            for au in fm.theme_basecodes(5):
+                mask = '? 1 ? ? ? %s' % au
                 masked_area = fm.inventory(0, mask=mask)
                 if masked_area > mask_area_thresh:
                     au_vals.append(au)
@@ -33,10 +33,10 @@ def schedule_harvest_areacontrol(fm, max_harvest, period=None, acode='harvest', 
                     if verbose > 0:
                         print('adding to au_agg', mask, masked_area)
             if au_agg:
-                fm._themes[2]['areacontrol_au_agg'] = au_agg 
-                if fm.inventory(0, mask='? ? areacontrol_au_agg ? ?') > mask_area_thresh:
+                fm._themes[5]['areacontrol_au_agg'] = au_agg 
+                if fm.inventory(0, mask='? ? ? ? ? areacontrol_au_agg') > mask_area_thresh:
                     au_vals.append('areacontrol_au_agg')
-            target_masks = ['? 1 %s ? ?' % au for au in au_vals]
+            target_masks = ['? 1 ? ? ? %s' % au for au in au_vals]
         target_areas = []
         for i, mask in enumerate(target_masks): # compute area-weighted mean CMAI age for each masked DT set
             masked_area = fm.inventory(0, mask=mask, verbose=verbose)
@@ -406,7 +406,7 @@ def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_ste
     disturbance_type_mapping = [{'user_dist_type': 'harvest', 'default_dist_type': 'Clearcut harvesting without salvage'},
                             {'user_dist_type': 'fire', 'default_dist_type': 'Wildfire'}]
     for dtype_key in fm.dtypes:
-        fm.dt(dtype_key).last_pass_disturbance = 'fire' if dtype_key[2] == dtype_key[4] else 'harvest'
+        fm.dt(dtype_key).last_pass_disturbance = 'fire' if dtype_key[5] == dtype_key[4] else 'harvest'
     sit_config, sit_tables = fm.to_cbm_sit(softwood_volume_yname='swdvol', 
                                        hardwood_volume_yname='hwdvol', 
                                        admin_boundary='British Columbia', 
