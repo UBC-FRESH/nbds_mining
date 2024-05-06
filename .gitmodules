@@ -1,4 +1,0 @@
-[submodule "data/tsa04_data"]
-	path = data/tsa04_data
-	url = ./data/tsa04_data
-	datalad-id = a3ebbbe8-3464-47c4-aef6-aa703fb0941f
