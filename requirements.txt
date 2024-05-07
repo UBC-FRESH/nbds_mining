@@ -63,4 +63,4 @@ traitlets==5.14.1
 tzdata==2024.1
 wcwidth==0.2.13
 widgetsnbextension==4.0.10
--e git+https://github.com/UBC-FRESH/ws3.git=ws3
+-e git+https://github.com/UBC-FRESH/ws3.git@bb205bd24fc46a5de172b28d4d296887604b50df#egg=ws3@
