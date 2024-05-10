@@ -437,7 +437,9 @@ def plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_ste
     axes[1, 1].set_xlabel('Year')
     axes[1, 1].set_ylabel('Carbon emission')    
     plt.tight_layout()
+    plt.savefig('Carbon_emissions_stocks.pdf')
     plt.show()
+    
 
 
 def scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps):
@@ -454,6 +456,7 @@ def scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps):
     print( "Net emission base scenario", cbm_output_2.iloc[:25]['Net emission'].sum())
     print( "Net emission alternative scenario", cbm_output_4.iloc[:25]['Net emission'].sum())    
     print('dollar_per_ton is: ', dollar_per_ton)
+    plt.savefig("net_emission_difference.pdf")
     return ax
 
 
