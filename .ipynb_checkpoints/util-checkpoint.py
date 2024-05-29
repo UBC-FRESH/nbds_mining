@@ -227,7 +227,113 @@ def plot_results(fm):
     return fig, ax, df
 
 
+################################################
+# Optimization
+################################################
+
+def cmp_c_z(fm, path, expr):
+    """
+    Compile objective function coefficient (given ForestModel instance, 
+    leaf-to-root-node path, and expression to evaluate).
+    """
+    result = 0.
+    for t, n in enumerate(path, start=1):
+        d = n.data()
+        if fm.is_harvest(d['acode']):
+            result += fm.compile_product(t, expr, d['acode'], [d['dtk']], d['age'], coeff=False)
+    return result
+
+def cmp_c_cflw(fm, path, expr, mask=None): # product, all harvest actions
+    """
+    Compile flow constraint coefficient for product indicator (given ForestModel 
+    instance, leaf-to-root-node path, expression to evaluate, and optional mask).
+    """
+    result = {}
+    for t, n in enumerate(path, start=1):
+        d = n.data()
+        if mask and not fm.match_mask(mask, d['dtk']): continue
+        if fm.is_harvest(d['acode']):
+            result[t] = fm.compile_product(t, expr, d['acode'], [d['dtk']], d['age'], coeff=False)
+    return result
+
+
+def cmp_c_caa(fm, path, expr, acodes, mask=None): # product, named actions
+    """
+    Compile constraint coefficient for product indicator (given ForestModel 
+    instance, leaf-to-root-node path, expression to evaluate, list of action codes, 
+    and optional mask).
+    """
+    result = {}
+    for t, n in enumerate(path, start=1):
+        d = n.data()
+        if mask and not fm.match_mask(mask, d['dtk']): continue
+        if d['acode'] in acodes:
+            result[t] = fm.compile_product(t, expr, d['acode'], [d['dtk']], d['age'], coeff=False)
+    return result
+
+
+def cmp_c_ci(fm, path, yname, mask=None): # product, named actions
+    """
+    Compile constraint coefficient for inventory indicator (given ForestModel instance, 
+    leaf-to-root-node path, expression to evaluate, and optional mask).
+    """
+    result = {}
+    for t, n in enumerate(path, start=1):
+        d = n.data()
+        if mask and not fm.match_mask(mask, d['_dtk']): continue
+        result[t] = fm.inventory(t, yname=yname, age=d['_age'], dtype_keys=[d['_dtk']]) 
+        #result[t] = fm.inventory(t, yname=yname, age=d['age'], dtype_keys=[d['dtk']]) 
+    return result
+
+def gen_scenario(fm, name='base', util=0.85, harvest_acode='harvest',
+                 cflw_ha={}, cflw_hv={}, 
+                 cgen_ha={}, cgen_hv={}, cgen_gs={}, 
+                 tvy_name='totvol', obj_mode='max_hv', mask=None):
+    import ws3.opt
+    from functools import partial
+    import numpy as np
+    coeff_funcs = {}
+    cflw_e = {}
+    cgen_data = {}
+    acodes = ['null', harvest_acode] # define list of action codes
+    vexpr = '%s * %0.2f' % (tvy_name, util) # define volume expression
+    if obj_mode == 'max_hv': # maximize harvest volume
+        sense = ws3.opt.SENSE_MAXIMIZE 
+        zexpr = vexpr
+    elif obj_mode == 'min_ha': # minimize harvest area
+        sense = ws3.opt.SENSE_MINIMIZE 
+        zexpr = '1.'
+    else:
+        raise ValueError('Invalid obj_mode: %s' % obj_mode)        
+    coeff_funcs['z'] = partial(cmp_c_z, expr=zexpr) # define objective function coefficient function  
+    T = fm.periods
+    if cflw_ha: # define even flow constraint (on harvest area)
+        cname = 'cflw_ha'
+        coeff_funcs[cname] = partial(cmp_c_caa, expr='1.', acodes=[harvest_acode], mask=None) 
+        cflw_e[cname] = cflw_ha
+    if cflw_hv: # define even flow constraint (on harvest volume)
+        cname = 'cflw_hv'
+        coeff_funcs[cname] = partial(cmp_c_caa, expr=vexpr, acodes=[harvest_acode], mask=None) 
+        cflw_e[cname] = cflw_hv         
+    if cgen_ha: # define general constraint (harvest area)
+        cname = 'cgen_ha'
+        coeff_funcs[cname] = partial(cmp_c_caa, expr='1.', acodes=[harvest_acode], mask=None) 
+        cgen_data[cname] = cgen_ha
+    if cgen_hv: # define general constraint (harvest volume)
+        cname = 'cgen_hv'
+        coeff_funcs[cname] = partial(cmp_c_caa, expr=vexpr, acodes=[harvest_acode], mask=None) 
+        cgen_data[cname] = cgen_hv
+    if cgen_gs: # define general constraint (growing stock)
+        cname = 'cgen_gs'
+        coeff_funcs[cname] = partial(cmp_c_ci, yname=tvy_name, mask=None)
+        cgen_data[cname] = cgen_gs
+    return fm.add_problem(name, coeff_funcs, cflw_e, cgen_data=cgen_data, acodes=acodes, sense=sense, mask=mask)
+
+
+
+
 def run_scenario(fm, scenario_name='base'):
+    import gurobipy as grb
     cflw_ha = {}
     cflw_hv = {}
     cgen_ha = {}
