@@ -330,8 +330,6 @@ def gen_scenario(fm, name='base', util=0.85, harvest_acode='harvest',
     return fm.add_problem(name, coeff_funcs, cflw_e, cgen_data=cgen_data, acodes=acodes, sense=sense, mask=mask)
 
 
-
-
 def run_scenario(fm, scenario_name='base'):
     import gurobipy as grb
     cflw_ha = {}
