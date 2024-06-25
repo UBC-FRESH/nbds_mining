@@ -5,6 +5,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import math
+import os
 
 
 def schedule_harvest_areacontrol(fm, max_harvest, period=None, acode='harvest', util=0.85, 
@@ -521,6 +522,7 @@ def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_ste
 
 
 def plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_steps):
+    output_path = os.path.join("./pdf", "Carbon_emissions_stocks.pdf")
     fig, axes = plt.subplots(2, 2, sharex=True, figsize=(12, 10))   
     cbm_output_1.groupby('Year').sum().plot(ax=axes[0, 0], xlim=(0, n_steps), ylim=(0, None))
     axes[0, 0].set_title('Carbon stocks over years (base scenario)')
@@ -541,12 +543,13 @@ def plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_ste
     axes[1, 1].set_xlabel('Year')
     axes[1, 1].set_ylabel('Carbon emission')    
     plt.tight_layout()
-    plt.savefig('Carbon_emissions_stocks.pdf')
+    plt.savefig(output_path)
     plt.show()
     
 
 
 def scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps):
+    output_path = os.path.join("./pdf", "net_emission_difference.pdf")
     cbm_output_2.reset_index(drop=False, inplace=True)
     dif_scenario = pd.DataFrame({"Year": cbm_output_2["Year"],
                        "Net emission": cbm_output_4['Net emission'] - cbm_output_2['Net emission']})
@@ -560,7 +563,7 @@ def scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps):
     print( "Net emission base scenario", cbm_output_2.iloc[:25]['Net emission'].sum())
     print( "Net emission alternative scenario", cbm_output_4.iloc[:25]['Net emission'].sum())    
     print('dollar_per_ton is: ', dollar_per_ton)
-    plt.savefig("net_emission_difference.pdf")
+    plt.savefig(output_path)
     return ax
 
 
