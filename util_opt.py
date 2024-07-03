@@ -343,7 +343,7 @@ def run_scenario(fm, scenario_name='base'):
     cflw_hv = ({p:0.05 for p in fm.periods}, 1)
     if scenario_name == 'base': 
         # Base scenario
-        print('running bsae scenario')
+        print('running base scenario')
     elif scenario_name == 'base-cgen_ha': 
         # Base scenario, plus harvest area general constraints
         print('running base scenario plus harvest area constraints')
@@ -599,7 +599,7 @@ def scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps):
 def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, scenario_name):
     from util_opt import stock_emission_scenario, plot_scenarios, scenario_dif
     cbm_output_1, cbm_output_2 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name) #base optimization
-    fm.reset() 
+    fm.reset()
     cbm_output_3, cbm_output_4 = stock_emission_scenario_null(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest) #alternative null
     plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_steps)
     dif_plot =scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps)
