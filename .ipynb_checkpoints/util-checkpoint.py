@@ -242,6 +242,7 @@ def cmp_c_z(fm, path, expr):
         d = n.data()
         if fm.is_harvest(d['acode']):
             result += fm.compile_product(t, expr, d['acode'], [d['dtk']], d['age'], coeff=False)
+            print(result)
     return result
 
 def cmp_c_cflw(fm, path, expr, mask=None): # product, all harvest actions
@@ -333,6 +334,7 @@ def gen_scenario(fm, name='base', util=0.85, harvest_acode='harvest',
 
 def run_scenario(fm, scenario_name='base'):
     import gurobipy as grb
+    initial_inv = 134731.
     cflw_ha = {}
     cflw_hv = {}
     cgen_ha = {}
@@ -345,17 +347,29 @@ def run_scenario(fm, scenario_name='base'):
         # Base scenario
         print('running bsae scenario')
     elif scenario_name == 'base-cgen_ha': 
-        # Base scenario, plus harvest area general constraints
+        # Base scenario, plus harvest area general constraints 100%
         print('running base scenario plus harvest area constraints')
-        cgen_ha = {'lb':{1:100.}, 'ub':{1:101.}}    
+        cgen_ha = {'lb':{1:initial_inv*0.1}, 'ub':{1:initial_inv*1}}   
+    elif scenario_name == 'base-cgen_ha_90%': 
+        # Base scenario, plus harvest area general constraints 90%
+        print('running base scenario plus harvest area constraints')
+        cgen_ha = {'lb':{1:initial_inv*0.1}, 'ub':{1:initial_inv*0.9}}   
+    elif scenario_name == 'base-cgen_ha_80%': 
+        # Base scenario, plus harvest area general constraints 80%
+        print('running base scenario plus harvest area constraints')
+        cgen_ha = {'lb':{1:initial_inv*0.1}, 'ub':{1:initial_inv*0.8}}
+    elif scenario_name == 'base-cgen_ha_70%': 
+        # Base scenario, plus harvest area general constraints 70%
+        print('running base scenario plus harvest area constraints')
+        cgen_ha = {'lb':{1:initial_inv*0.1}, 'ub':{1:initial_inv*0.7}} 
     elif scenario_name == 'base-cgen_hv': 
         # Base scenario, plus harvest volume general constraints
         print('running base scenario plus harvest volume constraints')
-        cgen_hv = {'lb':{1:1000.}, 'ub':{1:1001.}}    
+        cgen_hv = {'lb':{1:100000.}, 'ub':{1:100100.}}    
     elif scenario_name == 'base-cgen_gs': 
         # Base scenario, plus growing stock general constraints
         print('running base scenario plus growing stock constraints')
-        cgen_gs = {'lb':{10:100000.}, 'ub':{10:100001.}}
+        cgen_gs = {'lb':{10:10000000.}, 'ub':{10:10000100.}}
     else:
         assert False # bad scenario name
     p = gen_scenario(fm=fm, 

@@ -344,10 +344,14 @@ def run_scenario(fm, scenario_name='base'):
     if scenario_name == 'base': 
         # Base scenario
         print('running base scenario')
+        cgen_gs = {'lb':{1:0}, 'ub':{1:9999999999}} 
+        cgen_hv = {'lb':{1:0}, 'ub':{1:9999999999}}
+        cgen_ha = {'lb':{1:0}, 'ub':{1:9999999999}}
     elif scenario_name == 'base-cgen_ha': 
         # Base scenario, plus harvest area general constraints
         print('running base scenario plus harvest area constraints')
-        cgen_ha = {'lb':{1:100.}, 'ub':{1:101.}}    
+        # cgen_ha = {'lb':{1:100.}, 'ub':{1:101.}}    
+        cgen_ha = {'lb':{10:0}, 'ub':{10:191273*0.8}}    
     elif scenario_name == 'base-cgen_hv': 
         # Base scenario, plus harvest volume general constraints
         print('running base scenario plus harvest volume constraints')
