@@ -333,6 +333,8 @@ def gen_scenario(fm, name='base', util=0.85, harvest_acode='harvest',
 
 def run_scenario(fm, scenario_name='base'):
     import gurobipy as grb
+    initial_inv = 134731. #ha
+    initial_gs = 7017249.  #m3
     cflw_ha = {}
     cflw_hv = {}
     cgen_ha = {}
@@ -360,6 +362,13 @@ def run_scenario(fm, scenario_name='base'):
         # Base scenario, plus growing stock general constraints
         print('running base scenario plus growing stock constraints')
         cgen_gs = {'lb':{10:100000.}, 'ub':{10:100001.}}
+   
+    elif scenario_name == 'base-cgen_gs_ha_100': 
+        # Base scenario, plus growing stock general constraints
+        print('running maxmizie harvest scenario scenario plus growing stock constraints plus harvest area constraints 100%')
+        cgen_gs = {'lb':{x:initial_gs*0.9 for x in range(1,11)}, 'ub':{x:initial_gs*100 for x in range(1,11)}} #Not less than 90% of initial growing stock
+        # cgen_hv = {'lb':{20:AAC-1}, 'ub':{20:AAC}} #Achieve the Annual Allowable Cut
+        cgen_ha = {'lb':{1:initial_inv*0.1}, 'ub':{1:initial_inv*1}} 
     else:
         assert False # bad scenario name
     p = gen_scenario(fm=fm, 
