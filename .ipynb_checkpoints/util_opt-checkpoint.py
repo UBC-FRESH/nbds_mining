@@ -149,7 +149,7 @@ def calculate_concrete_volume(fm, i, product_coefficients, clt_percentage, credi
 
 
 # Iterate through the rows of the DataFrame
-def emission_concrete_manu(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_manu_factor):
+def emission_concrete_manu(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_manu_factor, displacement_effect):
     from util_opt import  calculate_concrete_volume
     df_emission_concrete_manu = {'period': [], 'co2_concrete_manu': []}
     for i in range(0, fm.horizon *10   + 1 ):
@@ -168,7 +168,7 @@ def emission_concrete_manu(fm, product_coefficients, clt_percentage, credibility
 
 
 # Displacement of concrete landfill
-def emission_concrete_landfill(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_landfill_factor):
+def emission_concrete_landfill(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_landfill_factor, displacement_effect):
     from util_opt import  calculate_concrete_volume
     df_emission_concrete_landfill = {'period': [], 'co2_concrete_landfill': []}   
     # Iterate through the rows of the DataFrame
@@ -185,7 +185,7 @@ def emission_concrete_landfill(fm, product_coefficients, clt_percentage, credibi
     # Create a DataFrame from the dictionary
     df_emission_concrete_landfill = pd.DataFrame(df_emission_concrete_landfill)
     return df_emission_concrete_landfill
-
+################################################
 
 def compile_scenario(fm):
     oha = [fm.compile_product(period, '1.', acode='harvest') for period in fm.periods]
@@ -505,7 +505,7 @@ def run_cbm(df_carbon_stock, df_carbon_emission, df_emission_concrete_manu, df_e
     return annual_carbon_stocks, annual_net_emission
 
 
-def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name):   
+def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect):   
     decay_rates = {'plumber':math.log(2.)/35., 'ppaper':math.log(2.)/2.}
     product_coefficients = {'plumber':0.9, 'ppaper':0.1}
     product_percentages = {'plumber':0.5, 'ppaper':1.}
@@ -519,8 +519,8 @@ def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_ste
     # plot_scenario(df)
     df_carbon_stock = hwp_carbon_stock(fm, products, product_coefficients, product_percentages, decay_rates)
     df_carbon_emission = hwp_carbon_emission(fm, products, product_coefficients, product_percentages, decay_rates)
-    df_emission_concrete_manu = emission_concrete_manu(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_manu_factor)
-    df_emission_concrete_landfill = emission_concrete_landfill(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_landfill_factor)
+    df_emission_concrete_manu = emission_concrete_manu(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_manu_factor, displacement_effect)
+    df_emission_concrete_landfill = emission_concrete_landfill(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_landfill_factor, displacement_effect)
     disturbance_type_mapping = [{'user_dist_type': 'harvest', 'default_dist_type': 'Clearcut harvesting without salvage'},
                             {'user_dist_type': 'fire', 'default_dist_type': 'Wildfire'}]
     for dtype_key in fm.dtypes:
@@ -534,7 +534,7 @@ def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_ste
     return cbm_output_1, cbm_output_2     
 
 
-def stock_emission_scenario_null(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest):   
+def stock_emission_scenario_null(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, displacement_effect):   
     decay_rates = {'plumber':math.log(2.)/35., 'ppaper':math.log(2.)/2.}
     product_coefficients = {'plumber':0.9, 'ppaper':0.1}
     product_percentages = {'plumber':0.5, 'ppaper':1.}
@@ -548,8 +548,8 @@ def stock_emission_scenario_null(fm, clt_percentage, credibility, budget_input, 
     # plot_scenario(df)
     df_carbon_stock = hwp_carbon_stock(fm, products, product_coefficients, product_percentages, decay_rates)
     df_carbon_emission = hwp_carbon_emission(fm, products, product_coefficients, product_percentages, decay_rates)
-    df_emission_concrete_manu = emission_concrete_manu(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_manu_factor)
-    df_emission_concrete_landfill = emission_concrete_landfill(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_landfill_factor)
+    df_emission_concrete_manu = emission_concrete_manu(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_manu_factor, displacement_effect)
+    df_emission_concrete_landfill = emission_concrete_landfill(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_landfill_factor, displacement_effect)
     disturbance_type_mapping = [{'user_dist_type': 'harvest', 'default_dist_type': 'Clearcut harvesting without salvage'},
                             {'user_dist_type': 'fire', 'default_dist_type': 'Wildfire'}]
     for dtype_key in fm.dtypes:
@@ -609,11 +609,11 @@ def scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps):
     return ax
 
 
-def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, scenario_name):
+def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, scenario_name, displacement_effect):
     from util_opt import stock_emission_scenario, plot_scenarios, scenario_dif
-    cbm_output_1, cbm_output_2 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name) #base optimization
+    cbm_output_1, cbm_output_2 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect) #base optimization
     fm.reset()
-    cbm_output_3, cbm_output_4 = stock_emission_scenario_null(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest) #alternative null
+    cbm_output_3, cbm_output_4 = stock_emission_scenario_null(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, displacement_effect) #alternative null
     plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_steps)
     dif_plot =scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps)
 
