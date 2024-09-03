@@ -62,7 +62,7 @@ def schedule_harvest_areacontrol(fm, max_harvest, period=None, acode='harvest', 
 # HWP effect
 ################################################
 
-def calculate_co2_value_stock(fm, i, product_coefficient, decay_rate, product_percentage, hwp_pool_effect_value):      
+def calculate_co2_value_stock(fm, i, product_coefficient, decay_rate, product_percentage):      
     """
     Calculate carbon stock for harvested wood products for period `i`.
     """
@@ -70,15 +70,15 @@ def calculate_co2_value_stock(fm, i, product_coefficient, decay_rate, product_pe
     return (
         sum(fm.compile_product(period, f'totvol * {product_coefficient} * {product_percentage}') / 10 * (1 - decay_rate)**(i - j)
         for j in range(1, i + 1)
-        ) * 460 * 0.5 * 44 / 12 * hwp_pool_effect_value
+        ) * 460 * 0.5 * 44 / 12
     )
     
 
-def calculate_initial_co2_value_stock(fm, i, product_coefficient, product_percentage, hwp_pool_effect_value):
+def calculate_initial_co2_value_stock(fm, i, product_coefficient, product_percentage):
     """
     Calculate carbon stock for harvested wood products for period 1.
     """
-    return fm.compile_product(i, f'totvol * {product_coefficient} * {product_percentage}') * 0.1 * 460 * 0.5 * 44 / 12 * hwp_pool_effect_value / fm.period_length
+    return fm.compile_product(i, f'totvol * {product_coefficient} * {product_percentage}') * 0.1 * 460 * 0.5 * 44 / 12 / fm.period_length
 
 
 def hwp_carbon_stock(fm, products, product_coefficients, product_percentages, decay_rates, hwp_pool_effect_value):
@@ -97,9 +97,9 @@ def hwp_carbon_stock(fm, products, product_coefficients, product_percentages, de
             if i == 0:
                 co2_values_stock.append(0)
             if i == 1:
-                co2_values_stock.append(calculate_initial_co2_value_stock(fm, i, product_coefficient, product_percentage, hwp_pool_effect_value))
+                co2_values_stock.append(hwp_pool_effect_value * calculate_initial_co2_value_stock(fm, i, product_coefficient, product_percentage))
             else:
-                co2_values_stock.append(calculate_co2_value_stock(fm, i, product_coefficient, decay_rate, product_percentage, hwp_pool_effect_value))
+                co2_values_stock.append(hwp_pool_effect_value * calculate_co2_value_stock(fm, i, product_coefficient, decay_rate, product_percentage))
         co2_value_stock = sum(co2_values_stock) / 1000
         data_carbon_stock['period'].append(period_value)
         data_carbon_stock['co2_stock'].append(co2_value_stock)    
@@ -107,17 +107,17 @@ def hwp_carbon_stock(fm, products, product_coefficients, product_percentages, de
     return df_carbon_stock
 
 
-def calculate_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage, hwp_pool_effect_value):
+def calculate_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage):
     period = math.ceil(i / fm.period_length)
     return (
         sum(fm.compile_product(period, f'totvol * {product_coefficient} * {product_percentage}') * 0.1 * (1 - decay_rate)**(i - j)
         for j in range(1, i + 1)
-        ) * 460 * 0.5 * 44 / 12 * decay_rate * hwp_pool_effect_value
+        ) * 460 * 0.5 * 44 / 12 * decay_rate 
  )
 
 
-def calculate_initial_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage, hwp_pool_effect_value):
-    return fm.compile_product(i, f'totvol * {product_coefficient} * {product_percentage}') * 0.1 * 460 * 0.5 * 44 / 12 * decay_rate * hwp_pool_effect_value / fm.period_length
+def calculate_initial_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage):
+    return fm.compile_product(i, f'totvol * {product_coefficient} * {product_percentage}') * 0.1 * 460 * 0.5 * 44 / 12 * decay_rate  / fm.period_length
 
 
 # Emission (by year)
@@ -134,9 +134,9 @@ def hwp_carbon_emission(fm, products, product_coefficients, product_percentages,
             if i == 0:
                 co2_values_emission.append(0)
             elif i == 1:
-                co2_values_emission.append(calculate_initial_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage, hwp_pool_effect_value))
+                co2_values_emission.append(hwp_pool_effect_value * calculate_initial_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage))
             else:
-                co2_values_emission.append(calculate_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage, hwp_pool_effect_value))
+                co2_values_emission.append(hwp_pool_effect_value * calculate_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage))
         co2_value_emission = sum(co2_values_emission) / 1000
         data_carbon_emission['period'].append(period_value)
         data_carbon_emission['co2_emission'].append(co2_value_emission)    
@@ -154,9 +154,9 @@ def hwp_carbon_emission_immed(fm):
         else:
             period = math.ceil(i / fm.period_length)
             co2_values_emission_immed.append(fm.compile_product(period, 'totvol') * 0.1 * 460 * 0.5 * 44 / 12 / fm.period_length)
-    co2_value_emission_immed = sum(co2_values_emission_immed) / 1000
-    data_carbon_emission_immed['period'].append(period_value)
-    data_carbon_emission_immed['co2_emission_immed'].append(co2_value_emission_immed)    
+        co2_value_emission_immed = sum(co2_values_emission_immed) / 1000
+        data_carbon_emission_immed['period'].append(period_value)
+        data_carbon_emission_immed['co2_emission_immed'].append(co2_value_emission_immed)    
     df_carbon_emission_immed = pd.DataFrame(data_carbon_emission_immed)
     return df_carbon_emission_immed
 
@@ -513,10 +513,12 @@ def run_cbm(df_carbon_stock, df_carbon_emission, df_carbon_emission_immed, df_em
     
     df_emission_concrete_manu = -1 * df_emission_concrete_manu.groupby('period').sum()
     df_emission_concrete_landfill = -1 * df_emission_concrete_landfill.groupby('period').sum()
-    annual_net_emission['HWP'] = df_carbon_emission['co2_emission'] * (1 - release_immediately_value) + df_carbon_emission_immed['co2_emission_immed'] * release_immediately_value
+    annual_net_emission['HWP'] =  (1 - release_immediately_value) * df_carbon_emission['co2_emission'] 
+    annual_net_emission['Carbon release immediately'] = release_immediately_value * df_carbon_emission_immed['co2_emission_immed']
     annual_net_emission['Concrete_manufacturing'] = df_emission_concrete_manu['co2_concrete_manu']
     annual_net_emission['Concrete_landfill'] = df_emission_concrete_landfill['co2_concrete_landfill']
     annual_net_emission['Net emission'] += annual_net_emission['HWP']
+    annual_net_emission['Net emission'] += annual_net_emission['Carbon release immediately'] 
     annual_net_emission['Net emission'] += annual_net_emission['Concrete_manufacturing']
     annual_net_emission['Net emission'] += annual_net_emission['Concrete_landfill']
     if plot:

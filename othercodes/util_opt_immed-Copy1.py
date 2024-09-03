@@ -62,7 +62,7 @@ def schedule_harvest_areacontrol(fm, max_harvest, period=None, acode='harvest', 
 # HWP effect
 ################################################
 
-def calculate_co2_value_stock(fm, i, product_coefficient, decay_rate, product_percentage, hwp_pool_effect_value):      
+def calculate_co2_value_stock(fm, i, product_coefficient, decay_rate, product_percentage):      
     """
     Calculate carbon stock for harvested wood products for period `i`.
     """
@@ -70,22 +70,22 @@ def calculate_co2_value_stock(fm, i, product_coefficient, decay_rate, product_pe
     return (
         sum(fm.compile_product(period, f'totvol * {product_coefficient} * {product_percentage}') / 10 * (1 - decay_rate)**(i - j)
         for j in range(1, i + 1)
-        ) * 460 * 0.5 * 44 / 12 * hwp_pool_effect_value
+        ) * 460 * 0.5 * 44 / 12
     )
     
 
-def calculate_initial_co2_value_stock(fm, i, product_coefficient, product_percentage, hwp_pool_effect_value):
+def calculate_initial_co2_value_stock(fm, i, product_coefficient, product_percentage):
     """
     Calculate carbon stock for harvested wood products for period 1.
     """
-    return fm.compile_product(i, f'totvol * {product_coefficient} * {product_percentage}') * 0.1 * 460 * 0.5 * 44 / 12 * hwp_pool_effect_value / fm.period_length
+    return fm.compile_product(i, f'totvol * {product_coefficient} * {product_percentage}') * 0.1 * 460 * 0.5 * 44 / 12 / fm.period_length
 
 
 def hwp_carbon_stock(fm, products, product_coefficients, product_percentages, decay_rates, hwp_pool_effect_value):
     """
     Compile periodic harvested wood products carbon stocks data.
     """
-    from util_opt import calculate_co2_value_stock, calculate_initial_co2_value_stock
+    from util_opt_immed import calculate_co2_value_stock, calculate_initial_co2_value_stock
     data_carbon_stock = {'period': [], 'co2_stock': []}    
     for i in range(0, fm.horizon * 10 + 1):
         period_value = i
@@ -97,9 +97,9 @@ def hwp_carbon_stock(fm, products, product_coefficients, product_percentages, de
             if i == 0:
                 co2_values_stock.append(0)
             if i == 1:
-                co2_values_stock.append(calculate_initial_co2_value_stock(fm, i, product_coefficient, product_percentage, hwp_pool_effect_value))
+                co2_values_stock.append(hwp_pool_effect_value * calculate_initial_co2_value_stock(fm, i, product_coefficient, product_percentage))
             else:
-                co2_values_stock.append(calculate_co2_value_stock(fm, i, product_coefficient, decay_rate, product_percentage, hwp_pool_effect_value))
+                co2_values_stock.append(hwp_pool_effect_value * calculate_co2_value_stock(fm, i, product_coefficient, decay_rate, product_percentage))
         co2_value_stock = sum(co2_values_stock) / 1000
         data_carbon_stock['period'].append(period_value)
         data_carbon_stock['co2_stock'].append(co2_value_stock)    
@@ -107,22 +107,22 @@ def hwp_carbon_stock(fm, products, product_coefficients, product_percentages, de
     return df_carbon_stock
 
 
-def calculate_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage, hwp_pool_effect_value):
+def calculate_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage):
     period = math.ceil(i / fm.period_length)
     return (
         sum(fm.compile_product(period, f'totvol * {product_coefficient} * {product_percentage}') * 0.1 * (1 - decay_rate)**(i - j)
         for j in range(1, i + 1)
-        ) * 460 * 0.5 * 44 / 12 * decay_rate * hwp_pool_effect_value
+        ) * 460 * 0.5 * 44 / 12 * decay_rate 
  )
 
 
-def calculate_initial_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage, hwp_pool_effect_value):
-    return fm.compile_product(i, f'totvol * {product_coefficient} * {product_percentage}') * 0.1 * 460 * 0.5 * 44 / 12 * decay_rate * hwp_pool_effect_value / fm.period_length
+def calculate_initial_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage):
+    return fm.compile_product(i, f'totvol * {product_coefficient} * {product_percentage}') * 0.1 * 460 * 0.5 * 44 / 12 * decay_rate  / fm.period_length
 
 
 # Emission (by year)
 def hwp_carbon_emission(fm, products, product_coefficients, product_percentages, decay_rates, hwp_pool_effect_value):
-    from util_opt import calculate_co2_value_emission, calculate_initial_co2_value_emission
+    from util_opt_immed import calculate_co2_value_emission, calculate_initial_co2_value_emission
     data_carbon_emission = {'period': [], 'co2_emission': []}    
     for i in range(0, fm.horizon * 10  + 1):
         period_value = i
@@ -134,15 +134,31 @@ def hwp_carbon_emission(fm, products, product_coefficients, product_percentages,
             if i == 0:
                 co2_values_emission.append(0)
             elif i == 1:
-                co2_values_emission.append(calculate_initial_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage, hwp_pool_effect_value))
+                co2_values_emission.append(hwp_pool_effect_value * calculate_initial_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage))
             else:
-                co2_values_emission.append(calculate_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage, hwp_pool_effect_value))
+                co2_values_emission.append(hwp_pool_effect_value * calculate_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage))
         co2_value_emission = sum(co2_values_emission) / 1000
         data_carbon_emission['period'].append(period_value)
         data_carbon_emission['co2_emission'].append(co2_value_emission)    
     df_carbon_emission = pd.DataFrame(data_carbon_emission)
     return df_carbon_emission
 
+
+def hwp_carbon_emission_immed(fm):
+    data_carbon_emission_immed = {'period': [], 'co2_emission_immed': []}    
+    for i in range(0, fm.horizon * 10  + 1):
+        period_value = i
+        co2_values_emission_immed = []                    
+        if i == 0:
+            co2_values_emission_immed.append(0)
+        else:
+            period = math.ceil(i / fm.period_length)
+            co2_values_emission_immed.append(fm.compile_product(period, 'totvol') * 0.1 * 460 * 0.5 * 44 / 12 / fm.period_length)
+        co2_value_emission_immed = sum(co2_values_emission_immed) / 1000
+        data_carbon_emission_immed['period'].append(period_value)
+        data_carbon_emission_immed['co2_emission_immed'].append(co2_value_emission_immed)    
+    df_carbon_emission_immed = pd.DataFrame(data_carbon_emission_immed)
+    return df_carbon_emission_immed
 
 ################################################
 # Displacement effect
@@ -155,7 +171,7 @@ def calculate_concrete_volume(fm, i, product_coefficients, clt_percentage, credi
 
 # Iterate through the rows of the DataFrame
 def emission_concrete_manu(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_manu_factor, displacement_effect):
-    from util_opt import  calculate_concrete_volume
+    from util_opt_immed import  calculate_concrete_volume
     df_emission_concrete_manu = {'period': [], 'co2_concrete_manu': []}
     for i in range(0, fm.horizon *10   + 1 ):
         period_value = i
@@ -174,7 +190,7 @@ def emission_concrete_manu(fm, product_coefficients, clt_percentage, credibility
 
 # Displacement of concrete landfill
 def emission_concrete_landfill(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_landfill_factor, displacement_effect):
-    from util_opt import  calculate_concrete_volume
+    from util_opt_immed import  calculate_concrete_volume
     df_emission_concrete_landfill = {'period': [], 'co2_concrete_landfill': []}   
     # Iterate through the rows of the DataFrame
     for i in range(0, fm.horizon *10   + 1 ):
@@ -405,7 +421,7 @@ def run_scenario(fm, scenario_name='base'):
 # Implement a simple function to run CBM from ws3 export data
 ##############################################################
 
-def run_cbm(df_carbon_stock, df_carbon_emission, df_emission_concrete_manu, df_emission_concrete_landfill, sit_config, sit_tables, n_steps, plot=True):
+def run_cbm(df_carbon_stock, df_carbon_emission, df_carbon_emission_immed, df_emission_concrete_manu, df_emission_concrete_landfill, sit_config, sit_tables, n_steps, release_immediately_value, plot=True):
     from libcbm.input.sit import sit_reader
     from libcbm.input.sit import sit_cbm_factory 
     from libcbm.model.cbm.cbm_output import CBMOutput
@@ -491,14 +507,18 @@ def run_cbm(df_carbon_stock, df_carbon_emission, df_emission_concrete_manu, df_e
                                         "Gross growth": 44/12 * -1*fi[GrossGrowth_pools].sum(axis=1),
                                         "Net emission": 44/12 * (fi[ecosystem_decay_emissions_pools].sum(axis=1)-fi[GrossGrowth_pools].sum(axis=1))})
     annual_net_emission = annual_net_emission.groupby('Year').sum()
+    
     df_carbon_emission =  df_carbon_emission.groupby('period').sum()
+    df_carbon_emission_immed =  df_carbon_emission_immed.groupby('period').sum()
     
     df_emission_concrete_manu = -1 * df_emission_concrete_manu.groupby('period').sum()
     df_emission_concrete_landfill = -1 * df_emission_concrete_landfill.groupby('period').sum()
-    annual_net_emission['HWP'] = df_carbon_emission['co2_emission']
+    annual_net_emission['HWP'] =  (1 - release_immediately_value) * df_carbon_emission['co2_emission'] 
+    annual_net_emission['Carbon release immediately'] = release_immediately_value * df_carbon_emission_immed['co2_emission_immed']
     annual_net_emission['Concrete_manufacturing'] = df_emission_concrete_manu['co2_concrete_manu']
     annual_net_emission['Concrete_landfill'] = df_emission_concrete_landfill['co2_concrete_landfill']
     annual_net_emission['Net emission'] += annual_net_emission['HWP']
+    annual_net_emission['Net emission'] += annual_net_emission['Carbon release immediately'] 
     annual_net_emission['Net emission'] += annual_net_emission['Concrete_manufacturing']
     annual_net_emission['Net emission'] += annual_net_emission['Concrete_landfill']
     if plot:
@@ -510,7 +530,7 @@ def run_cbm(df_carbon_stock, df_carbon_emission, df_emission_concrete_manu, df_e
     return annual_carbon_stocks, annual_net_emission
 
 
-def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value):   
+def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value):   
     decay_rates = {'plumber':math.log(2.)/35., 'ppaper':math.log(2.)/2.}
     product_coefficients = {'plumber':0.9, 'ppaper':0.1}
     product_percentages = {'plumber':0.5, 'ppaper':1.}
@@ -524,6 +544,8 @@ def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_ste
     # plot_scenario(df)
     df_carbon_stock = hwp_carbon_stock(fm, products, product_coefficients, product_percentages, decay_rates, hwp_pool_effect_value)
     df_carbon_emission = hwp_carbon_emission(fm, products, product_coefficients, product_percentages, decay_rates, hwp_pool_effect_value)
+    df_carbon_emission_immed = hwp_carbon_emission_immed(fm)
+
     df_emission_concrete_manu = emission_concrete_manu(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_manu_factor, displacement_effect)
     df_emission_concrete_landfill = emission_concrete_landfill(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_landfill_factor, displacement_effect)
     disturbance_type_mapping = [{'user_dist_type': 'harvest', 'default_dist_type': 'Clearcut harvesting without salvage'},
@@ -535,11 +557,11 @@ def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_ste
                                        admin_boundary='British Columbia', 
                                        eco_boundary='Montane Cordillera',
                                        disturbance_type_mapping=disturbance_type_mapping)
-    cbm_output_1, cbm_output_2 = run_cbm(df_carbon_stock, df_carbon_emission, df_emission_concrete_manu, df_emission_concrete_landfill, sit_config, sit_tables, n_steps, plot = False)
+    cbm_output_1, cbm_output_2 = run_cbm(df_carbon_stock, df_carbon_emission,  df_carbon_emission_immed, df_emission_concrete_manu, df_emission_concrete_landfill, sit_config, sit_tables, n_steps, release_immediately_value, plot = False)
     return cbm_output_1, cbm_output_2     
 
 
-def stock_emission_scenario_null(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, displacement_effect, hwp_pool_effect_value):   
+def stock_emission_scenario_null(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, displacement_effect, hwp_pool_effect_value, release_immediately_value):   
     decay_rates = {'plumber':math.log(2.)/35., 'ppaper':math.log(2.)/2.}
     product_coefficients = {'plumber':0.9, 'ppaper':0.1}
     product_percentages = {'plumber':0.5, 'ppaper':1.}
@@ -553,6 +575,7 @@ def stock_emission_scenario_null(fm, clt_percentage, credibility, budget_input, 
     # plot_scenario(df)
     df_carbon_stock = hwp_carbon_stock(fm, products, product_coefficients, product_percentages, decay_rates, hwp_pool_effect_value)
     df_carbon_emission = hwp_carbon_emission(fm, products, product_coefficients, product_percentages, decay_rates, hwp_pool_effect_value)
+    df_carbon_emission_immed = hwp_carbon_emission_immed(fm)
     df_emission_concrete_manu = emission_concrete_manu(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_manu_factor, displacement_effect)
     df_emission_concrete_landfill = emission_concrete_landfill(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_landfill_factor, displacement_effect)
     disturbance_type_mapping = [{'user_dist_type': 'harvest', 'default_dist_type': 'Clearcut harvesting without salvage'},
@@ -564,7 +587,7 @@ def stock_emission_scenario_null(fm, clt_percentage, credibility, budget_input, 
                                        admin_boundary='British Columbia', 
                                        eco_boundary='Montane Cordillera',
                                        disturbance_type_mapping=disturbance_type_mapping)
-    cbm_output_3, cbm_output_4 = run_cbm(df_carbon_stock, df_carbon_emission, df_emission_concrete_manu, df_emission_concrete_landfill, sit_config, sit_tables, n_steps, plot = False)
+    cbm_output_3, cbm_output_4 = run_cbm(df_carbon_stock, df_carbon_emission,  df_carbon_emission_immed, df_emission_concrete_manu, df_emission_concrete_landfill, sit_config, sit_tables, n_steps, release_immediately_value, plot = False)
     return cbm_output_3, cbm_output_4     
 
 
@@ -614,11 +637,11 @@ def scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps):
     return ax
 
 
-def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, scenario_name, displacement_effect, hwp_pool_effect_value):
-    from util_opt import stock_emission_scenario, plot_scenarios, scenario_dif
-    cbm_output_1, cbm_output_2 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value) #base optimization
+def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value):
+    from util_opt_immed import stock_emission_scenario, plot_scenarios, scenario_dif
+    cbm_output_1, cbm_output_2 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value) #base optimization
     fm.reset()
-    cbm_output_3, cbm_output_4 = stock_emission_scenario_null(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, displacement_effect, hwp_pool_effect_value) #alternative null
+    cbm_output_3, cbm_output_4 = stock_emission_scenario_null(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, displacement_effect, hwp_pool_effect_value, release_immediately_value) #alternative null
     plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_steps)
     dif_plot =scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps)
 
