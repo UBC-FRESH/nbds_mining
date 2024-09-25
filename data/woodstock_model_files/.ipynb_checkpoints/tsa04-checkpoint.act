@@ -1,4 +1,0 @@
-ACTIONS
-*ACTION harvest Y
-*OPERABLE harvest
-? 1 ? ? ? _AGE >= 160 AND _AGE <= 600
