@@ -242,7 +242,6 @@ def cmp_c_z(fm, path, expr):
         d = n.data()
         if fm.is_harvest(d['acode']):
             result += fm.compile_product(t, expr, d['acode'], [d['dtk']], d['age'], coeff=False)
-            print(result)
     return result
 
 def cmp_c_cflw(fm, path, expr, mask=None): # product, all harvest actions
@@ -290,7 +289,7 @@ def cmp_c_ci(fm, path, yname, mask=None): # product, named actions
 def gen_scenario(fm, name='base', util=0.85, harvest_acode='harvest',
                  cflw_ha={}, cflw_hv={}, 
                  cgen_ha={}, cgen_hv={}, cgen_gs={}, 
-                 tvy_name='totvol', obj_mode='max_hv', mask=None):
+                 tvy_name='totvol', obj_mode='max_hv', mask=None):   
     from functools import partial
     import numpy as np
     coeff_funcs = {}
@@ -306,8 +305,9 @@ def gen_scenario(fm, name='base', util=0.85, harvest_acode='harvest',
         zexpr = '1.'
     else:
         raise ValueError('Invalid obj_mode: %s' % obj_mode)        
-    coeff_funcs['z'] = partial(cmp_c_z, expr=zexpr) # define objective function coefficient function  
-    T = fm.periods
+    
+    coeff_funcs['z'] = partial(cmp_c_z, expr=zexpr) # define objective function coefficient functio    
+    T = fm.periods    
     if cflw_ha: # define even flow constraint (on harvest area)
         cname = 'cflw_ha'
         coeff_funcs[cname] = partial(cmp_c_caa, expr='1.', acodes=[harvest_acode], mask=None) 
@@ -357,26 +357,33 @@ def run_scenario(fm, scenario_name='base'):
         # define harvest area and harvest volume flow constraints
         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+    
     elif scenario_name == 'base': 
         # Base scenario : 
-        print('running base (no harvest) scenario')
+        print('running base scenario')
+   
     # Golden Bear scenarios
     elif scenario_name == 'bau_gldbr': 
         # Business as usual scenario for Golden Bear mining site: 
         print('running business as usual scenario for the Golden Bear mine site')
         cgen_hv = {'lb':{1:aac_gold}, 'ub':{1:aac_gold}}
-
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
     # Red Chris Scenarios
     elif scenario_name == 'bau_redchrs': 
         # Business as usual scenario for the Red Chris mining site: 
         print('running business as usual scenario for the Red Chris mining site')
         cgen_hv = {'lb':{1:aac_red}, 'ub':{1:aac_red}} 
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
     
     # Equity Silver scenarios
     elif scenario_name == 'bau_eqtslvr': 
         # Business as usual scenario for the Equity Silver mining site: 
         print('running business as usual scenario for the Equity Silver mining site')
-        cgen_hv = {'lb':{1:0.2*aac_equity}, 'ub':{1:aac_equity}}     
+        cgen_hv = {'lb':{1:0.2*aac_equity}, 'ub':{1:aac_equity}} 
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)   
     
     
     elif scenario_name == 'base-cgen_ha': 
