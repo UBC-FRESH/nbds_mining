@@ -146,68 +146,6 @@ def cmp_c_id(fm, path, yname, mask=None): # product, named actions
     return result
 
 
-def gen_scenario(fm, name='base', util=0.85, harvest_acode='harvest',
-                 cflw_ha={}, cflw_hv={}, 
-                 cgen_ha={}, cgen_hv={}, 
-                 cgen_gs={}, tvy_name='totvol', cp_name='ecosystem', cf_name='total_emissions', obj_mode='max_hv', mask=None):
-    
-    from functools import partial
-    import numpy as np
-    coeff_funcs = {}
-    cflw_e = {}
-    cgen_data = {}
-    acodes = ['null', harvest_acode] # define list of action codes
-    vexpr = '%s * %0.2f' % (tvy_name, util) # define volume expression
-
-
-    #Define constants from product carbon estimation
-
-    if obj_mode == 'max_hv': # maximize harvest volume
-        sense = ws3.opt.SENSE_MAXIMIZE 
-        zexpr = vexpr
-    elif obj_mode == 'min_hv': # maximize harvest volume
-        sense = ws3.opt.SENSE_MINIMIZE 
-        zexpr = vexpr
-    else:
-        raise ValueError('Invalid obj_mode: %s' % obj_mode)
-    
-    # coeff_funcs['z'] = partial(cmp_c_i, yname=cf_name) # define objective function coefficient function for inventory data
-    # coeff_funcs['z'] = partial(cmp_c_id, yname=cf_name) # define objective function coefficient function for inventory change data
-    coeff_funcs['z'] = partial(cmp_c_z, expr=vexpr) # define objective function coefficient function for havrest volume
-    # coeff_funcs['z'] = partial(cmp_c_ss, expr=vexpr, yname=cp_name) # define objective function coefficient function for total system carbon stock
-    # coeff_funcs['z'] = partial(cmp_c_se, expr=vexpr, yname=cp_name) # define objective function coefficient function for net system carbon emission
-    T = fm.periods
-    if cflw_ha: # define even flow constraint (on harvest area)
-        cname = 'cflw_ha'
-        coeff_funcs[cname] = partial(cmp_c_caa, expr='1.', acodes=[harvest_acode], mask=None) 
-        cflw_e[cname] = cflw_ha
-    if cflw_hv: # define even flow constraint (on harvest volume)
-        cname = 'cflw_hv'
-        coeff_funcs[cname] = partial(cmp_c_caa, expr=vexpr, acodes=[harvest_acode], mask=None) 
-        # cflw_e[cname] = cflw_hv         
-    if cgen_ha: # define general constraint (harvest area)
-        cname = 'cgen_ha'
-        coeff_funcs[cname] = partial(cmp_c_caa, expr='1.', acodes=[harvest_acode], mask=None) 
-        cgen_data[cname] = cgen_ha
-    if cgen_hv: # define general constraint (harvest volume)
-        cname = 'cgen_hv'
-        coeff_funcs[cname] = partial(cmp_c_caa, expr=vexpr, acodes=[harvest_acode], mask=None) 
-        cgen_data[cname] = cgen_hv
-    if cgen_gs: # define general constraint (growing stock)
-        cname = 'cgen_gs'
-        coeff_funcs[cname] = partial(cmp_c_ci, yname=tvy_name, mask=None)
-        cgen_data[cname] = cgen_gs
-    # if cgen_cp: # define general constraint (carbon pools)
-    #     cname = 'cgen_cp'
-    #     coeff_funcs[cname] = partial(cmp_c_ci, yname=cp_name, mask=None)
-    #     cgen_data[cname] = cgen_cp
-    # if cgen_cf: # define general constraint (carbon fluxes)
-    #     cname = 'cgen_cf'
-    #     coeff_funcs[cname] = partial(cmp_c_ci, yname=cf_name, mask=None)
-    #     cgen_data[cname] = cgen_cf
-    return fm.add_problem(name, coeff_funcs, cflw_e, cgen_data=cgen_data, acodes=acodes, sense=sense, mask=mask)
-
-
 def compile_scenario(fm):
     oha = [fm.compile_product(period, '1.', acode='harvest') for period in fm.periods]
     ohv = [fm.compile_product(period, 'totvol * 0.85', acode='harvest') for period in fm.periods]
@@ -261,112 +199,6 @@ def plot_scenario(df):
     # ax[4].set_xlabel('Period')
     # ax[4].set_ylabel('tons of C')
     return fig, ax
-
-
-def run_scenario(fm, scenario_name='base'):
-    #Import Module
-    import gurobipy as grb
-    
-    cflw_ha = {}
-    cflw_hv = {}
-    cgen_ha = {}
-    cgen_hv = {}
-    cgen_gs = {}
-    # cgen_cp = {}
-    # cgen_cf = {}
-    
-    # define harvest area and harvest volume even-flow constraints
-    cflw_ha = ({p:0.05 for p in fm.periods}, 1)
-    cflw_hv = ({p:0.05 for p in fm.periods}, 1)
-    
-    in_gs = 750290200. #initial growing stock volume
-    AAC = 6935023. # AAC of TSA24
-
-    if scenario_name == 'single_cut': 
-        # Base scenario
-        print('running scenario')
-        cgen_hv = {'lb':{x:0.0 for x in [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]}, 'ub':{x:0.0 for x in [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]}} #Achieve the Annual Allowable Cut
-        # cgen_gs = {'lb':{10:in_gs*0.9}, 'ub':{10:in_gs*2}} #Not less than 90% of initial growing stock
-        # cgen_gs = {'lb':{10:in_gs*0.9}, 'ub':{10:in_gs*2}} #Not less than 90% of initial growing stock
-        # cgen_hv = {'lb':{x:AAC*0.5 for x in fm.periods}, 'ub':{x:AAC*1000 for x in fm.periods}} #Achieve the Annual Allowable Cu
-        # cgen_hv = {'lb':{10:in_gs*10}, 'ub':{10:in_gs*10+1}}
-    elif scenario_name == 'base': 
-        # Base scenario
-        print('running base scenario')
-        # cgen_gs = {'lb':{x:in_gs*0.9 for x in range(0,21)}, 'ub':{x:in_gs*2 for x in range(0,21)}} #Not less than 90% of initial growing stock
-        # cgen_hv = {'lb':{x:AAC*0.9 for x in range(0,21)}, 'ub':{x:AAC for x in range(0,21)}} #Maintain the Annual Allowable Cut
-    elif scenario_name == 'base_m': 
-        # Base scenario
-        print('running maxmizie harvest scenario')
-        # cgen_gs = {'lb':{x:in_gs*0.9 for x in range(0,21)}, 'ub':{x:in_gs*100 for x in range(0,21)}} #Not less than 90% of initial growing stock
-        # cgen_hv = {'lb':{20:AAC-1}, 'ub':{20:AAC}} #Achieve the Annual Allowable Cut
-    elif scenario_name == 'base_c': 
-        # Cabron indicators constraints
-        print('running base scenario with even-flow constraints')
-        cgen_gs = {'lb':{10:in_gs*0.9}, 'ub':{10:in_gs*2}} #Not less than 90% of initial growing stock
-        cgen_hv = {'lb':{1:AAC*0.5}, 'ub':{1:AAC*2}}  #Not less than 10% of annual allowable cut
-        # cgen_cf = {'lb':{10:in_cf}, 'ub':{10:in_cf*1.1}} #Not more than 110% of initial total ecosystem carbon stock
-    elif scenario_name == 'reduce_10%_AAC': 
-        # Reduce 10% of harvest volume from base scenario
-        print('running base scenario reduced 10% of AAC')
-        cgen_gs = {'lb':{10:in_gs*0.9}, 'ub':{10:in_gs*0.9+1}}#Not less than 90% of initial growing stock
-        cgen_hv = {'lb':{1:AAC*0.9-1}, 'ub':{1:AAC*0.9}}    
-    elif scenario_name == 'reduce_20%_AAC': 
-        # Reduce 20% of harvest volume from base scenario
-        print('running base scenario reduced 20% of AAC')
-        cgen_gs = {'lb':{10:in_gs*0.9}, 'ub':{10:in_gs*0.9+1}} #Not less than 90% of initial growing stock
-        cgen_hv = {'lb':{1:AAC*0.8-1}, 'ub':{1:AAC*0.8}}   
-    elif scenario_name == 'increase_10%_AAC': 
-        # Increase 10% of harvest volume from base scenario
-        print('running base scenario increased 10% of AAC')
-        cgen_gs = {'lb':{10:in_gs*0.9}, 'ub':{10:in_gs*0.9+1}} #Not less than 90% of initial growing stock
-        cgen_hv = {'lb':{1:AAC*1.1-1}, 'ub':{1:AAC*1.1}}
-    elif scenario_name == 'increase_20%_AAC': 
-        # Increase 20% of harvest volume from base scenario
-        print('running base scenario increased 20% of AAC')
-        cgen_gs = {'lb':{10:in_gs*0.9}, 'ub':{10:in_gs*0.9+1}} #Not less than 90% of initial growing stock
-        cgen_hv = {'lb':{1:AAC*1.2-1}, 'ub':{1:AAC*1.2}}   
-    else:
-        assert False # bad scenario name
-      
-    # p = gen_scenario(fm=fm, 
-    #                  name=scenario_name, 
-    #                  cflw_ha=cflw_ha, 
-    #                  cflw_hv=cflw_hv,
-    #                  cgen_ha=cgen_ha,
-    #                  cgen_hv=cgen_hv,
-    #                  cgen_gs=cgen_gs)
-    
-    p = gen_scenario(fm=fm, 
-                     name=scenario_name, 
-                     cflw_ha=cflw_ha, 
-                     cflw_hv=cflw_hv,
-                     cgen_ha=cgen_ha,
-                     cgen_hv=cgen_hv,
-                     cgen_gs=cgen_gs,)
-
-    # fm.reset()
-    m = p.solve()
-
-    if m.status != grb.GRB.OPTIMAL:
-        print('Model not optimal.')
-        # sys.exit()
-        
-    sch = fm.compile_schedule(p)
-    fm.apply_schedule(sch, 
-                      force_integral_area=False, 
-                      override_operability=False,
-                      fuzzy_age=False,
-                      recourse_enabled=False,
-                      verbose=False,
-                      compile_c_ycomps=True)
-    
-    from util import compile_scenario, plot_scenario
-    df = compile_scenario(fm)
-    fig, ax = plot_scenario(df)
-    # cbm_results = cbm_hardlink(fm,disturbance_type_mapping)
-    
-    return fig, df, p
 
 # def run_scenario(fm, scenario_name='base'):
 #     cflw_ha = {}
@@ -598,7 +430,7 @@ def compare_ws3_cbm(fm, cbm_output, disturbance_type_mapping, biomass_pools, dom
         axs[0].plot(df_ws3['period'], df_ws3['eco_stock'], label='ws3 ecosystem stock')
         axs[0].set_xlabel('Period')
         axs[0].set_ylabel('Stock (ton C)')
-        axs[0].set_ylim(0, None)  # Set y-axis to start from 0
+        # axs[0].set_ylim(0, None)  # Set y-axis to start from 0
         axs[0].set_xticks(ticks)  # Set x-axis ticks to show every 2 periods
         axs[0].legend()
         
@@ -607,7 +439,7 @@ def compare_ws3_cbm(fm, cbm_output, disturbance_type_mapping, biomass_pools, dom
         axs[1].plot(df_ws3['period'], df_ws3['biomass_stock'], label='ws3 biomass stock')
         axs[1].set_xlabel('Period')
         axs[1].set_ylabel('Stock (ton C)')
-        axs[1].set_ylim(0, None)  # Set y-axis to start from 0
+        # axs[1].set_ylim(0, None)  # Set y-axis to start from 0
         axs[1].set_xticks(ticks)  # Set x-axis ticks to show every 2 periods
         axs[1].legend()
         
@@ -616,7 +448,7 @@ def compare_ws3_cbm(fm, cbm_output, disturbance_type_mapping, biomass_pools, dom
         axs[2].plot(df_ws3['period'], df_ws3['dom_stock'], label='ws3 dom stock')
         axs[2].set_xlabel('Period')
         axs[2].set_ylabel('Stock (ton C)')
-        axs[2].set_ylim(0, None)  # Set y-axis to start from 0
+        # axs[2].set_ylim(0, None)  # Set y-axis to start from 0
         axs[2].set_xticks(ticks)  # Set x-axis ticks to show every 2 periods
         axs[2].legend()
 
@@ -684,7 +516,7 @@ def plugin_c_curves(fm, c_curves_p, pools):
     # for dtype_key in dt_tuples:
     for dtype_key in fm.dtypes:
         dt = fm.dt(dtype_key)
-        mask = ('?', '?', '?', '?', dtype_key[4], dtype_key[5])
+        mask = ('?', '?', dtype_key[2], '?', dtype_key[4])
         for _mask, ytype, curves in fm.yields:
             if _mask != mask: continue # we know there will be a match so this works
             print('found match for mask', mask)
@@ -871,7 +703,7 @@ def compile_events(self, softwood_volume_yname, hardwood_volume_yname, n_yield_v
     sit_events = pd.DataFrame(data)         
     return sit_events
 
-def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=0.5, mask=None):
+def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=100, half_life_paper=2, proportion_solid_wood=1, mask=None):
     """
     Compile objective function coefficient for total system carbon stock indicators (given ForestModel instance, 
     leaf-to-root-node path, and expression to evaluate).
@@ -917,8 +749,9 @@ def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, 
             new_product_stock_paper = new_product_carbon * proportion_paper 
 
             # Apply decay to old stocks and add new stocks
-            sum_product_stock_solid_wood = old_product_stock_solid_wood * (1 - k_solid_wood)**10 + new_product_stock_solid_wood * (1 - k_solid_wood)**10
-            sum_product_stock_paper = old_product_stock_paper * (1 - k_paper)**10 + new_product_stock_paper * (1 - k_paper)**10
+            # Apply decay to all stocks within the same period they're produced
+            sum_product_stock_solid_wood = old_product_stock_solid_wood * (1 - k_solid_wood)**10 + new_product_stock_solid_wood
+            sum_product_stock_paper = (old_product_stock_paper) * (1 - k_paper)**10 + new_product_stock_paper
         
         else:
             # If not harvesting, simply apply decay to the old product stocks
@@ -928,12 +761,12 @@ def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, 
         # Update product_stock_dict with the new sum product stocks for this node
         product_stock_dict[node_id] = (sum_product_stock_solid_wood, sum_product_stock_paper)
 
-        sum_product_stock = sum_product_stock_solid_wood + sum_product_stock_paper
-        result += sum_product_stock
+        ecosystem_stock = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
+        result = ecosystem_stock + sum_product_stock_solid_wood + sum_product_stock_paper
         
     return result
 
-def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=0.5, displacement_factor=2.2, mask=None):
+def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=1000000, half_life_paper=2, proportion_solid_wood=1, displacement_factor=2.2, mask=None):
     """
     Compile objective function coefficient for net system carbon emission indicators (given ForestModel instance, 
     leaf-to-root-node path, and expression to evaluate).
@@ -963,7 +796,7 @@ def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, 
         
         # Track the ecosystem carbon stock change
         if mask and not fm.match_mask(mask, d['_dtk']): continue
-        result += (fm.inventory(t-1, yname, age=d['_age'], dtype_keys=[d['_dtk']])-fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']]))*44/12
+        result += (fm.inventory(t-1, yname, age=d['_age'], dtype_keys=[d['_dtk']])-fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']]))*44/12 #Convert C to CO2
         
         # Retrieve the last tuple of stocks from the dictionary
         last_stocks = next(reversed(product_stock_dict.values()), (0, 0))
@@ -976,11 +809,11 @@ def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, 
             new_product_stock_paper = new_product_stock * proportion_paper 
 
             # Apply decay to old stocks and add new stocks
-            sum_product_stock_solid_wood = old_product_stock_solid_wood * (1 - k_solid_wood)**10 + new_product_stock_solid_wood * (1 - k_solid_wood)**10
-            sum_product_stock_paper = old_product_stock_paper * (1 - k_paper)**10 + new_product_stock_paper * (1 - k_paper)**10
+            sum_product_stock_solid_wood = old_product_stock_solid_wood * (1 - k_solid_wood)**10 + new_product_stock_solid_wood
+            sum_product_stock_paper = old_product_stock_paper * (1 - k_paper)**10 + new_product_stock_paper
             
-            sum_product_emission_solid_wood = (old_product_stock_solid_wood * k_solid_wood**10 + new_product_stock_solid_wood * k_solid_wood**10)*44/12
-            sum_product_emission_paper = (old_product_stock_paper * k_paper**10 + new_product_stock_paper * k_paper**10)*44/12
+            sum_product_emission_solid_wood = old_product_stock_solid_wood * (1-(1 - k_solid_wood)**10) * 44 / 12 # Convert C to CO2
+            sum_product_emission_paper = old_product_stock_paper * (1-(1 - k_paper)**10) * 44 / 12 # Convert C to CO2
 
             # Update product_stock_dict with the new sum product stocks for this node
             product_stock_dict[node_id] = (sum_product_stock_solid_wood, sum_product_stock_paper)
@@ -998,14 +831,17 @@ def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, 
             sum_product_stock_solid_wood = old_product_stock_solid_wood * (1 - k_solid_wood)**10
             sum_product_stock_paper = old_product_stock_paper * (1 - k_paper)**10
             
-            sum_product_emission_solid_wood = old_product_stock_solid_wood * k_solid_wood*44/12
-            sum_product_emission_paper = old_product_stock_paper * k_paper*44/12
+            sum_product_emission_solid_wood = old_product_stock_solid_wood * (1-(1 - k_solid_wood)**10) * 44 / 12 # Convert C to CO2
+            sum_product_emission_paper = old_product_stock_paper * (1-(1 - k_paper)**10) * 44 / 12 # Convert C to CO2
 
             # Update product_stock_dict with the new sum product stocks for this node
             product_stock_dict[node_id] = (sum_product_stock_solid_wood, sum_product_stock_paper)
 
             sum_product_emission = sum_product_emission_solid_wood + sum_product_emission_paper
             result += sum_product_emission
+
+        ecosystem_stock_change = (fm.inventory(t-1, 'ecosystem') - fm.inventory(t, 'ecosystem')) * 44 / 12 if t > 0 else 0
+        result += ecosystem_stock_change
 
     return result
 
@@ -1039,16 +875,16 @@ def track_system_stock(fm, half_life_solid_wood, half_life_paper, proportion_sol
         new_product_stock_solid_wood = new_product_stock * proportion_solid_wood
         new_product_stock_paper = new_product_stock * proportion_paper 
 
-        # Apply decay to all stocks within the same period they're produced
-        sum_product_stock_solid_wood = (old_product_stock_solid_wood + new_product_stock_solid_wood) * (1 - k_solid_wood)**10
-        sum_product_stock_paper = (old_product_stock_paper + new_product_stock_paper) * (1 - k_paper)**10
+        # Apply decay to all emissions within the same period they're produced
+        sum_product_stock_solid_wood = old_product_stock_solid_wood * (1 - k_solid_wood)**10 + new_product_stock_solid_wood
+        sum_product_stock_paper = old_product_stock_paper * (1 - k_paper)**10 + new_product_stock_paper
 
         # Update product_stock_dict for this period
         product_stock_dict[period] = (sum_product_stock_solid_wood, sum_product_stock_paper)
 
         # Calculate total system carbon stock
-        sum_product_stock = sum_product_stock_solid_wood + sum_product_stock_paper
         ecosystem_stock = fm.inventory(period, 'ecosystem')
+        sum_product_stock = sum_product_stock_solid_wood + sum_product_stock_paper
         total_system_stock = ecosystem_stock + sum_product_stock
 
         # Update stock lists for this period
@@ -1070,6 +906,9 @@ def track_system_stock(fm, half_life_solid_wood, half_life_paper, proportion_sol
 
     df = pd.DataFrame(data)
 
+    # df.to_excel('results/no_harvest_stock.xlsx', index=False)
+    df.to_excel('results/stock.xlsx', index=False)
+
     # Plotting
     fig, ax = plt.subplots(1, 5, figsize=(16, 4))  # Adjusted for 5 subplots
     ax[0].bar(df.period, df.solid_wood)
@@ -1089,7 +928,7 @@ def track_system_stock(fm, half_life_solid_wood, half_life_paper, proportion_sol
         a.set_ylabel('Stock (tons)')
 
     plt.tight_layout()
-    return fig, ax, df
+    return fig, ax, df, product_stock_dict
 
 def track_system_emission(fm, half_life_solid_wood, half_life_paper, proportion_solid_wood, displacement_factor):
     
@@ -1122,11 +961,11 @@ def track_system_emission(fm, half_life_solid_wood, half_life_paper, proportion_
         new_product_stock_paper = new_product_stock * proportion_paper
 
         # Apply decay to all emissions within the same period they're produced
-        sum_product_stock_solid_wood = (old_product_stock_solid_wood + new_product_stock_solid_wood) * (1 - k_solid_wood)
-        sum_product_stock_paper = (old_product_stock_paper + new_product_stock_paper) * (1 - k_paper)
+        sum_product_stock_solid_wood = old_product_stock_solid_wood * (1 - k_solid_wood)**10 + new_product_stock_solid_wood
+        sum_product_stock_paper = old_product_stock_paper * (1 - k_paper)**10 + new_product_stock_paper
 
-        sum_product_emission_solid_wood = (old_product_stock_solid_wood + new_product_stock_solid_wood) * k_solid_wood * 44 / 12 # Convert C to CO2
-        sum_product_emission_paper = (old_product_stock_paper + new_product_stock_paper) * k_paper * 44 / 12 # Convert C to CO2
+        sum_product_emission_solid_wood = old_product_stock_solid_wood * (1-(1 - k_solid_wood)**10) * 44 / 12 # Convert C to CO2
+        sum_product_emission_paper = old_product_stock_paper * (1-(1 - k_paper)**10) * 44 / 12 # Convert C to CO2
         
         # Update product_emission_dict for this period
         product_stock_dict[period] = (sum_product_stock_solid_wood, sum_product_stock_paper)
@@ -1155,6 +994,8 @@ def track_system_emission(fm, half_life_solid_wood, half_life_paper, proportion_
     }
 
     df = pd.DataFrame(data)
+    # df.to_excel('results/no_harvest_emission.xlsx', index=False)
+    df.to_excel('results/emission.xlsx', index=False)
 
     # Plotting
     fig, ax = plt.subplots(1, 5, figsize=(16, 4))  # Adjusted for 5 subplots
@@ -1176,3 +1017,176 @@ def track_system_emission(fm, half_life_solid_wood, half_life_paper, proportion_
 
     plt.tight_layout()
     return fig, ax, df
+
+def gen_scenario(fm, name='base', util=0.85, harvest_acode='harvest',
+                 cflw_ha={}, cflw_hv={}, 
+                 cgen_ha={}, cgen_hv={}, 
+                 cgen_gs={}, tvy_name='totvol', cp_name='ecosystem', cf_name='total_emissions', obj_mode='max_hv', mask=None):
+    
+    from functools import partial
+    import numpy as np
+    coeff_funcs = {}
+    cflw_e = {}
+    cgen_data = {}
+    acodes = ['null', harvest_acode] # define list of action codes
+    vexpr = '%s * %0.2f' % (tvy_name, util) # define volume expression
+
+    #Define constants from product carbon estimation
+
+    if obj_mode == 'max_hv': # maximize harvest volume
+        sense = ws3.opt.SENSE_MAXIMIZE 
+        zexpr = vexpr
+    elif obj_mode == 'min_hv': # maximize harvest volume
+        sense = ws3.opt.SENSE_MINIMIZE 
+        zexpr = vexpr
+    else:
+        raise ValueError('Invalid obj_mode: %s' % obj_mode)
+    
+    # coeff_funcs['z'] = partial(cmp_c_i, yname=cf_name) # define objective function coefficient function for inventory data
+    # coeff_funcs['z'] = partial(cmp_c_id, yname=cf_name) # define objective function coefficient function for inventory change data
+    coeff_funcs['z'] = partial(cmp_c_z, expr=vexpr) # define objective function coefficient function for harvest volume
+    # coeff_funcs['z'] = partial(cmp_c_ss, expr=vexpr, yname=cp_name) # define objective function coefficient function for total system carbon stock
+    # coeff_funcs['z'] = partial(cmp_c_se, expr=vexpr, yname=cp_name) # define objective function coefficient function for net system carbon emission
+    
+    T = fm.periods
+    if cflw_ha: # define even flow constraint (on harvest area)
+        cname = 'cflw_ha'
+        coeff_funcs[cname] = partial(cmp_c_caa, expr='1.', acodes=[harvest_acode], mask=None) 
+        cflw_e[cname] = cflw_ha
+    if cflw_hv: # define even flow constraint (on harvest volume)
+        cname = 'cflw_hv'
+        coeff_funcs[cname] = partial(cmp_c_caa, expr=vexpr, acodes=[harvest_acode], mask=None) 
+        cflw_e[cname] = cflw_hv         
+    if cgen_ha: # define general constraint (harvest area)
+        cname = 'cgen_ha'
+        coeff_funcs[cname] = partial(cmp_c_caa, expr='1.', acodes=[harvest_acode], mask=None) 
+        cgen_data[cname] = cgen_ha
+    if cgen_hv: # define general constraint (harvest volume)
+        cname = 'cgen_hv'
+        coeff_funcs[cname] = partial(cmp_c_caa, expr=vexpr, acodes=[harvest_acode], mask=None) 
+        cgen_data[cname] = cgen_hv
+    if cgen_gs: # define general constraint (growing stock)
+        cname = 'cgen_gs'
+        coeff_funcs[cname] = partial(cmp_c_ci, yname=tvy_name, mask=None)
+        cgen_data[cname] = cgen_gs
+    # if cgen_cp: # define general constraint (carbon pools)
+    #     cname = 'cgen_cp'
+    #     coeff_funcs[cname] = partial(cmp_c_ci, yname=cp_name, mask=None)
+    #     cgen_data[cname] = cgen_cp
+    # if cgen_cf: # define general constraint (carbon fluxes)
+    #     cname = 'cgen_cf'
+    #     coeff_funcs[cname] = partial(cmp_c_ci, yname=cf_name, mask=None)
+    #     cgen_data[cname] = cgen_cf
+    return fm.add_problem(name, coeff_funcs, cflw_e, cgen_data=cgen_data, acodes=acodes, sense=sense, mask=mask)
+
+def run_scenario(fm, scenario_name='base'):
+    #Import Module
+    import gurobipy as grb
+    
+    cflw_ha = {}
+    cflw_hv = {}
+    cgen_ha = {}
+    cgen_hv = {}
+    cgen_gs = {}
+    # cgen_cp = {}
+    # cgen_cf = {}
+    
+    # define harvest area and harvest volume even-flow constraints
+    # cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+    # cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+    
+    in_gs = 750290200. #initial growing stock volume
+    end_gs_lb = 1374892622.6 #Ending growing stock inventory of the TSA 24 without harvesting
+    end_gs_ub = 1580212978.5 #Ending growing stock inventory of the TSA 24 after harvesting
+    AAC = 6935023. # AAC of TSA24
+
+    if scenario_name == 'single_cut': 
+        # Base scenario
+        print('running scenario')
+        cgen_hv = {'lb':{x:0.0 for x in [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]}, 'ub':{x:0.0 for x in [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]}} #Achieve the Annual Allowable Cut
+        # cgen_gs = {'lb':{10:in_gs*0.9}, 'ub':{10:in_gs*2}} #Not less than 90% of initial growing stock
+        # cgen_gs = {'lb':{10:in_gs*0.9}, 'ub':{10:in_gs*2}} #Not less than 90% of initial growing stock
+        # cgen_hv = {'lb':{x:AAC*0.5 for x in fm.periods}, 'ub':{x:AAC*1000 for x in fm.periods}} #Achieve the Annual Allowable Cu
+        # cgen_hv = {'lb':{10:in_gs*10}, 'ub':{10:in_gs*10+1}}
+    elif scenario_name == 'base': 
+        # Base scenario
+        print('running base scenario')
+        # cgen_gs = {'lb':{20:end_gs_ub*0.9}, 'ub':{20:end_gs_ub*1.1}} # Non-declining Yield Constraint
+        # cgen_gs = {'lb':{x:fm.inventory(x-1, 'totvol') for x in range(16,21)}, 'ub':{x:fm.inventory(x-1, 'totvol')+1 for x in range(0,21)}} # Non-declining Yield Constraint
+        # cgen_gs = {'lb':{0:in_gs}, 'ub':{0:in_gs*2}} # Initial Growing Stock Constraint
+        # cgen_gs = {'lb':{20:end_gs}, 'ub':{20:end_gs*2}} # Last Period Growing Stock Constraint
+        # cgen_gs = {'lb':{x:in_gs for x in range(16,21)}，'ub':{x:in_gs*2 for x in range(0,21)} #Not less than 90% of initial growing stock
+        # cgen_gs = {'lb':{x:in_gs*0.9 for x in range(0,21)}, 'ub':{x:in_gs*2 for x in range(0,21)}} #Not less than 90% of initial growing stock
+        # cgen_hv = {'lb':{x:AAC*0.9 for x in range(0,21)}, 'ub':{x:AAC for x in range(0,21)}} #Maintain the Annual Allowable Cut
+    elif scenario_name == 'base_m': 
+        # Base scenario
+        print('running maxmizie harvest scenario')
+        # cgen_gs = {'lb':{x:in_gs*0.9 for x in range(0,21)}, 'ub':{x:in_gs*100 for x in range(0,21)}} #Not less than 90% of initial growing stock
+        # cgen_hv = {'lb':{20:AAC-1}, 'ub':{20:AAC}} #Achieve the Annual Allowable Cut
+    elif scenario_name == 'base_c': 
+        # Cabron indicators constraints
+        print('running base scenario with even-flow constraints')
+        cgen_gs = {'lb':{10:in_gs*0.9}, 'ub':{10:in_gs*2}} #Not less than 90% of initial growing stock
+        cgen_hv = {'lb':{1:AAC*0.5}, 'ub':{1:AAC*2}}  #Not less than 10% of annual allowable cut
+        # cgen_cf = {'lb':{10:in_cf}, 'ub':{10:in_cf*1.1}} #Not more than 110% of initial total ecosystem carbon stock
+    elif scenario_name == 'reduce_10%_AAC': 
+        # Reduce 10% of harvest volume from base scenario
+        print('running base scenario reduced 10% of AAC')
+        cgen_gs = {'lb':{10:in_gs*0.9}, 'ub':{10:in_gs*0.9+1}}#Not less than 90% of initial growing stock
+        cgen_hv = {'lb':{1:AAC*0.9-1}, 'ub':{1:AAC*0.9}}    
+    elif scenario_name == 'reduce_20%_AAC': 
+        # Reduce 20% of harvest volume from base scenario
+        print('running base scenario reduced 20% of AAC')
+        cgen_gs = {'lb':{10:in_gs*0.9}, 'ub':{10:in_gs*0.9+1}} #Not less than 90% of initial growing stock
+        cgen_hv = {'lb':{1:AAC*0.8-1}, 'ub':{1:AAC*0.8}}   
+    elif scenario_name == 'increase_10%_AAC': 
+        # Increase 10% of harvest volume from base scenario
+        print('running base scenario increased 10% of AAC')
+        cgen_gs = {'lb':{10:in_gs*0.9}, 'ub':{10:in_gs*0.9+1}} #Not less than 90% of initial growing stock
+        cgen_hv = {'lb':{1:AAC*1.1-1}, 'ub':{1:AAC*1.1}}
+    elif scenario_name == 'increase_20%_AAC': 
+        # Increase 20% of harvest volume from base scenario
+        print('running base scenario increased 20% of AAC')
+        cgen_gs = {'lb':{10:in_gs*0.9}, 'ub':{10:in_gs*0.9+1}} #Not less than 90% of initial growing stock
+        cgen_hv = {'lb':{1:AAC*1.2-1}, 'ub':{1:AAC*1.2}}   
+    else:
+        assert False # bad scenario name
+      
+    # p = gen_scenario(fm=fm, 
+    #                  name=scenario_name, 
+    #                  cflw_ha=cflw_ha, 
+    #                  cflw_hv=cflw_hv,
+    #                  cgen_ha=cgen_ha,
+    #                  cgen_hv=cgen_hv,
+    #                  cgen_gs=cgen_gs)
+    
+    p = gen_scenario(fm=fm, 
+                     name=scenario_name, 
+                     cflw_ha=cflw_ha, 
+                     cflw_hv=cflw_hv,
+                     cgen_ha=cgen_ha,
+                     cgen_hv=cgen_hv,
+                     cgen_gs=cgen_gs,)
+
+    fm.reset()
+    m = p.solve()
+
+    if m.status != grb.GRB.OPTIMAL:
+        print('Model not optimal.')
+        # sys.exit()
+        
+    sch = fm.compile_schedule(p)
+    fm.apply_schedule(sch, 
+                      force_integral_area=False, 
+                      override_operability=False,
+                      fuzzy_age=False,
+                      recourse_enabled=False,
+                      verbose=False,
+                      compile_c_ycomps=True)
+    
+    from util import compile_scenario, plot_scenario
+    df = compile_scenario(fm)
+    fig, ax = plot_scenario(df)
+    # cbm_results = cbm_hardlink(fm,disturbance_type_mapping)
+    
+    return fig, df, p

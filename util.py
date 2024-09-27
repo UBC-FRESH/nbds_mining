@@ -6,7 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import math
 import os
-
+import ws3.opt
 
 def schedule_harvest_areacontrol(fm, max_harvest, period=None, acode='harvest', util=0.85, 
                                  target_masks=None, target_areas=None,
@@ -291,7 +291,6 @@ def gen_scenario(fm, name='base', util=0.85, harvest_acode='harvest',
                  cflw_ha={}, cflw_hv={}, 
                  cgen_ha={}, cgen_hv={}, cgen_gs={}, 
                  tvy_name='totvol', obj_mode='max_hv', mask=None):
-    import ws3.opt
     from functools import partial
     import numpy as np
     coeff_funcs = {}
@@ -334,19 +333,52 @@ def gen_scenario(fm, name='base', util=0.85, harvest_acode='harvest',
 
 def run_scenario(fm, scenario_name='base'):
     import gurobipy as grb
-    initial_inv = 134731. #ha
-    initial_gs = 7017249.  #m3
+    initial_inv_equit = 869737. #ha
+    initial_gs_equit = 106582957.  #m3   
+    initial_inv_red = 390738.
+    initial_gs_red =18018809.
+    initial_inv_gold = 191273.
+    initial_gs_gold = 7017249.
+    aac_equity =  18255528.
+    aac_red =  1072860. 
+    aac_gold =  766066. 
     cflw_ha = {}
     cflw_hv = {}
     cgen_ha = {}
     cgen_hv = {}
     cgen_gs = {}
-    # define harvest area and harvest volume flow constraints
-    cflw_ha = ({p:0.05 for p in fm.periods}, 1)
-    cflw_hv = ({p:0.05 for p in fm.periods}, 1)
-    if scenario_name == 'base': 
-        # Base scenario
-        print('running bsae scenario')
+
+    if scenario_name == 'test': 
+        # Test scenario
+        print('running test scenario')
+        # cgen_ha = {'lb':{1:100.}, 'ub':{1:101.}}
+        cgen_hv = {'lb':{1:0}, 'ub':{1:5*aac_gold}} 
+        # cgen_gs = {'lb':{10:initial_gs_gold}, 'ub':{10:initial_gs_gold*10}}
+        # define harvest area and harvest volume flow constraints
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+    elif scenario_name == 'base': 
+        # Base scenario : 
+        print('running base (no harvest) scenario')
+    # Golden Bear scenarios
+    elif scenario_name == 'bau_gldbr': 
+        # Business as usual scenario for Golden Bear mining site: 
+        print('running business as usual scenario for the Golden Bear mine site')
+        cgen_hv = {'lb':{1:aac_gold}, 'ub':{1:aac_gold}}
+
+    # Red Chris Scenarios
+    elif scenario_name == 'bau_redchrs': 
+        # Business as usual scenario for the Red Chris mining site: 
+        print('running business as usual scenario for the Red Chris mining site')
+        cgen_hv = {'lb':{1:aac_red}, 'ub':{1:aac_red}} 
+    
+    # Equity Silver scenarios
+    elif scenario_name == 'bau_eqtslvr': 
+        # Business as usual scenario for the Equity Silver mining site: 
+        print('running business as usual scenario for the Equity Silver mining site')
+        cgen_hv = {'lb':{1:0.2*aac_equity}, 'ub':{1:aac_equity}}     
+    
+    
     elif scenario_name == 'base-cgen_ha': 
         # Base scenario, plus harvest area general constraints 100%
         print('running base scenario plus harvest area constraints')
@@ -380,6 +412,7 @@ def run_scenario(fm, scenario_name='base'):
     
     else:
         assert False # bad scenario name
+        
     p = gen_scenario(fm=fm, 
                      name=scenario_name, 
                      cflw_ha=cflw_ha, 
