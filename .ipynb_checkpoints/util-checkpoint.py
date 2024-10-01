@@ -381,7 +381,7 @@ def run_scenario(fm, scenario_name='base'):
     elif scenario_name == 'bau_eqtslvr': 
         # Business as usual scenario for the Equity Silver mining site: 
         print('running business as usual scenario for the Equity Silver mining site')
-        cgen_hv = {'lb':{1:0.2*aac_equity}, 'ub':{1:aac_equity}} 
+        cgen_hv = {'lb':{1:0.7*aac_equity}, 'ub':{1:0.7*aac_equity}} 
         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
         cflw_hv = ({p:0.05 for p in fm.periods}, 1)   
     
