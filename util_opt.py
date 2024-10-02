@@ -352,7 +352,7 @@ def gen_scenario(fm, name='base', util=0.85, harvest_acode='harvest',
     return fm.add_problem(name, coeff_funcs, cflw_e, cgen_data=cgen_data, acodes=acodes, sense=sense, mask=mask)
 
 
-def run_scenario(fm, scenario_name='base'):
+def run_scenario(fm, obj_mode, scenario_name='base'):
     import gurobipy as grb
     initial_inv_equit = 869737. #ha
     initial_gs_equit = 106582957.  #m3   
@@ -360,9 +360,9 @@ def run_scenario(fm, scenario_name='base'):
     initial_gs_red =18018809.
     initial_inv_gold = 191273.
     initial_gs_gold = 7017249.
-    aac_equity =  1825553.
-    aac_red =  107286. 
-    aac_gold =  76607. 
+    aac_equity =  18255528. # AAC per year * 10
+    aac_red =  1072860. # AAC per year * 10
+    aac_gold =  766066. # AAC per year * 10
     cflw_ha = {}
     cflw_hv = {}
     cgen_ha = {}
@@ -444,7 +444,8 @@ def run_scenario(fm, scenario_name='base'):
                      cflw_hv=cflw_hv,
                      cgen_ha=cgen_ha,
                      cgen_hv=cgen_hv,
-                     cgen_gs=cgen_gs)
+                     cgen_gs=cgen_gs,
+                    obj_mode=obj_mode)
     fm.reset()
     m = p.solve()
     if m.status != grb.GRB.OPTIMAL:
@@ -576,7 +577,7 @@ def run_cbm(df_carbon_stock, df_carbon_emission, df_carbon_emission_immed, df_em
     return annual_carbon_stocks, annual_net_emission
 
 
-def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value):   
+def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, obj_mode):   
     decay_rates = {'plumber':math.log(2.)/35., 'ppaper':math.log(2.)/2.}
     product_coefficients = {'plumber':0.9, 'ppaper':0.1}
     product_percentages = {'plumber':0.5, 'ppaper':1.}
@@ -585,7 +586,7 @@ def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_ste
     co2_concrete_manu_factor = 298.
     concrete_density = 2.40 #ton/m3
     co2_concrete_landfill_factor = 0.00517 * concrete_density
-    sch_alt_scenario = run_scenario(fm, scenario_name)
+    sch_alt_scenario = run_scenario(fm, obj_mode, scenario_name)
     df = compile_scenario(fm)
     plot_scenario(df)
     df_carbon_stock = hwp_carbon_stock(fm, products, product_coefficients, product_percentages, decay_rates, hwp_pool_effect_value)
@@ -607,7 +608,7 @@ def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_ste
     return cbm_output_1, cbm_output_2     
 
 
-def stock_emission_scenario_equivalent(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, displacement_effect, hwp_pool_effect_value, release_immediately_value, case_study):   
+def stock_emission_scenario_equivalent(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, displacement_effect, hwp_pool_effect_value, release_immediately_value, case_study, obj_mode):   
     decay_rates = {'plumber':math.log(2.)/35., 'ppaper':math.log(2.)/2.}
     product_coefficients = {'plumber':0.9, 'ppaper':0.1}
     product_percentages = {'plumber':0.5, 'ppaper':1.}
@@ -637,8 +638,11 @@ def stock_emission_scenario_equivalent(fm, clt_percentage, credibility, budget_i
     return cbm_output_3, cbm_output_4     
 
 
-def plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_steps):
-    output_path = os.path.join("./pdf", "Carbon_emissions_stocks.pdf")
+def plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_steps, case_study, obj_mode, scenario_name, output_pdf_path):
+    if not os.path.exists(output_pdf_path):
+        os.makedirs(output_pdf_path)
+    output_filename = f"{case_study}_{obj_mode}_{scenario_name}_Carbon_emissions_stocks.pdf"
+    output_file_path = os.path.join(output_pdf_path, output_filename)
     fig, axes = plt.subplots(2, 2, sharex=True, figsize=(12, 10))   
     cbm_output_1.groupby('Year').sum().plot(ax=axes[0, 0], xlim=(0, n_steps), ylim=(0, None))
     axes[0, 0].set_title('Carbon stocks over years (alternative scenario)')
@@ -659,13 +663,16 @@ def plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_ste
     axes[1, 1].set_xlabel('Year')
     axes[1, 1].set_ylabel('Carbon emission')    
     plt.tight_layout()
-    plt.savefig(output_path)
+    plt.savefig(output_file_path)
     plt.show()
     
 
 
-def scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps):
-    output_path = os.path.join("./pdf", "net_emission_difference.pdf")
+def scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps, case_study, obj_mode, scenario_name, output_pdf_path):
+    if not os.path.exists(output_pdf_path):
+        os.makedirs(output_pdf_path)
+    output_filename = f"{case_study}_{obj_mode}_{scenario_name}_net_emission_difference.pdf"
+    output_file_path = os.path.join(output_pdf_path, output_filename)
     cbm_output_2.reset_index(drop=False, inplace=True)
     dif_scenario = pd.DataFrame({"Year": cbm_output_2["Year"],
                        "Net emission": cbm_output_2['Net emission'] - cbm_output_4['Net emission']})
@@ -679,22 +686,43 @@ def scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps):
     print( "Net emission base scenario", cbm_output_2.iloc[:25]['Net emission'].sum())
     print( "Net emission alternative scenario", cbm_output_4.iloc[:25]['Net emission'].sum())    
     print('dollar_per_ton is: ', dollar_per_ton)
-    plt.savefig(output_path)
+    plt.savefig(output_file_path)
     return ax
 
 
-def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, case_study):
+def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, case_study, obj_mode, output_csv_path, output_pdf_path):
     from util_opt import stock_emission_scenario, plot_scenarios, scenario_dif, stock_emission_scenario_equivalent
-    # cbm_output_1, cbm_output_2 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value) #alternative optimization
-    cbm_output_1, cbm_output_2 = stock_emission_scenario_equivalent(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, displacement_effect, hwp_pool_effect_value, release_immediately_value, case_study) # alternativr equivalent
+    if not os.path.exists(output_csv_path):
+        os.makedirs(output_csv_path)
+    cbm_output_1, cbm_output_2 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, obj_mode) #alternative optimization
+    # cbm_output_1, cbm_output_2 = stock_emission_scenario_equivalent(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, displacement_effect, hwp_pool_effect_value, release_immediately_value, case_study, obj_mode) # alternativr equivalent
 
-    print (cbm_output_2)
+    print(cbm_output_2)
+    cbm_output_2_df = pd.DataFrame(cbm_output_2)  
+    cbm_output_2_file = os.path.join(output_csv_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_2.csv')
+    cbm_output_2_df.to_csv(cbm_output_2_file, index=False)
     fm.reset()
-    if case_study in ['bau_redchrs', 'bau_eqtslvr', 'bau_gldbr']:
-        scenario_name = case_study
-        cbm_output_3, cbm_output_4 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value) #base scenario
-        print(cbm_output_4)
-    plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_steps)
-    dif_plot = scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps)
+    if case_study == 'redchrs':
+        scenario_name = 'bau_redchrs'
+        cbm_output_3, cbm_output_4 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, obj_mode) #base scenario
+    elif case_study == 'eqtslvr':
+        scenario_name = 'bau_eqtslvr'
+        cbm_output_3, cbm_output_4 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, obj_mode) #base scenario
+        cbm_output_4_df = pd.DataFrame(cbm_output_4)  
+        cbm_output_4_df.to_csv(f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_4.csv', index=False)
+    elif case_study == 'gldbr':
+        scenario_name = 'bau_gldbr'
+        cbm_output_3, cbm_output_4 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, obj_mode) #base scenario
+    print(cbm_output_4)
+    cbm_output_4_df = pd.DataFrame(cbm_output_4)  
+    cbm_output_4_file = os.path.join(output_csv_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_4.csv')
+    cbm_output_4_df.to_csv(cbm_output_4_file, index=False)
+
+    plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_steps, case_study, obj_mode, scenario_name, output_pdf_path)
+    dif_plot = scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps, case_study, obj_mode, scenario_name, output_pdf_path)
+
+
+
+
 
 
