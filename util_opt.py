@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import math
 import os
 import ws3.opt
+import pickle
+
 
 
 def schedule_harvest_areacontrol(fm, max_harvest, period=None, acode='harvest', util=0.85, 
@@ -260,8 +262,8 @@ def cmp_c_z(fm, path, expr):
     leaf-to-root-node path, and expression to evaluate).
     """
     result = 0.
-    for t, n in enumerate(path, start=1):
-        d = n.data()
+    for t, n in enumerate(path, start=1):        
+        d = n.data()    
         if fm.is_harvest(d['acode']):
             result += fm.compile_product(t, expr, d['acode'], [d['dtk']], d['age'], coeff=False)
     return result
@@ -369,16 +371,7 @@ def run_scenario(fm, obj_mode, scenario_name='base'):
     cgen_hv = {}
     cgen_gs = {}
 
-    if scenario_name == 'test': 
-        # Test scenario
-        print('running test scenario')
-        # cgen_ha = {'lb':{1:100.}, 'ub':{1:101.}}
-        cgen_hv = {'lb':{1:0}, 'ub':{1:5*aac_gold}} 
-        # cgen_gs = {'lb':{10:initial_gs_gold}, 'ub':{10:initial_gs_gold*10}}
-        # define harvest area and harvest volume flow constraints
-        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
-        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
-    elif scenario_name == 'no_cons': 
+    if scenario_name == 'no_cons': 
         # no_cons scenario : 
         print('running no constraints scenario')
         
@@ -389,6 +382,7 @@ def run_scenario(fm, obj_mode, scenario_name='base'):
         cgen_hv = {'lb':{1:aac_gold}, 'ub':{1:aac_gold}}
         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+
     # Red Chris Scenarios
     elif scenario_name == 'bau_redchrs': 
         # Business as usual scenario for the Red Chris mining site: 
@@ -396,6 +390,25 @@ def run_scenario(fm, obj_mode, scenario_name='base'):
         cgen_hv = {'lb':{1:aac_red}, 'ub':{1:aac_red}} 
         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+
+    elif scenario_name == 'redchrs_gs_hv_ha_100': 
+        # BAU scenario, plus harvest area general constraints 100%
+        print('running alternative scenario with harvest area constraints (100%)')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_ha = {'lb':{1:0}, 'ub':{1:initial_inv_red*1}}
+        cgen_hv = {'lb':{1:0.9*aac_red}, 'ub':{1:aac_red}} # at least 90% of aac
+        cgen_gs = {'lb':{10:initial_gs_red}, 'ub':{10:initial_gs_red*10}} #Not less than 90% of initial growing stock at the end
+
+    elif scenario_name == 'redchrs_gs_hv_ha_90': 
+        # BAU scenario, plus harvest area general constraints 100%
+        print('running alternative scenario with harvest area constraints (90%)')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_ha = {'lb':{1:0}, 'ub':{1:initial_inv_red*0.9}}
+        cgen_hv = {'lb':{1:0.9*aac_red}, 'ub':{1:aac_red}} # at least 90% of aac
+        cgen_gs = {'lb':{10:initial_gs_red}, 'ub':{10:initial_gs_red*10}} #Not less than 90% of initial growing stock at the end
+
     
     # Equity Silver scenarios
     elif scenario_name == 'bau_eqtslvr': 
@@ -405,10 +418,9 @@ def run_scenario(fm, obj_mode, scenario_name='base'):
         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
         
-    elif scenario_name == 'base-cgen_ha': 
-        # Base scenario, plus harvest area general constraints 100%
-        print('running base scenario plus harvest area constraints')
-        cgen_ha = {'lb':{1:initial_inv*0.1}, 'ub':{1:initial_inv*1}}   
+    
+
+    
     elif scenario_name == 'base-cgen_ha_90%': 
         # Base scenario, plus harvest area general constraints 90%
         print('running base scenario plus harvest area constraints')
@@ -690,37 +702,116 @@ def scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps, case_study, 
     return ax
 
 
-def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, case_study, obj_mode, output_csv_path, output_pdf_path):
+# def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, case_study, obj_mode, output_csv_path, output_pdf_path):
+#     from util_opt import stock_emission_scenario, plot_scenarios, scenario_dif, stock_emission_scenario_equivalent
+#     if not os.path.exists(output_csv_path):
+#         os.makedirs(output_csv_path)
+#     cbm_output_1, cbm_output_2 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, obj_mode) #alternative optimization
+#     # cbm_output_1, cbm_output_2 = stock_emission_scenario_equivalent(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, displacement_effect, hwp_pool_effect_value, release_immediately_value, case_study, obj_mode) # alternativr equivalent
+
+#     print(cbm_output_2)
+#     cbm_output_2_df = pd.DataFrame(cbm_output_2)  
+#     cbm_output_2_file = os.path.join(output_csv_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_2.csv')
+#     cbm_output_2_df.to_csv(cbm_output_2_file, index=False)
+#     fm.reset()
+#     if case_study == 'redchrs':
+#         scenario_name = 'bau_redchrs'
+#         cbm_output_3, cbm_output_4 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, obj_mode) #base scenario
+#     elif case_study == 'eqtslvr':
+#         scenario_name = 'bau_eqtslvr'
+#         cbm_output_3, cbm_output_4 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, obj_mode) #base scenario
+#         cbm_output_4_df = pd.DataFrame(cbm_output_4)  
+#         cbm_output_4_df.to_csv(f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_4.csv', index=False)
+#     elif case_study == 'gldbr':
+#         scenario_name = 'bau_gldbr'
+#         cbm_output_3, cbm_output_4 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, obj_mode) #base scenario
+#     print(cbm_output_4)
+#     cbm_output_4_df = pd.DataFrame(cbm_output_4)  
+#     cbm_output_4_file = os.path.join(output_csv_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_4.csv')
+#     cbm_output_4_df.to_csv(cbm_output_4_file, index=False)
+
+#     plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_steps, case_study, obj_mode, scenario_name, output_pdf_path)
+#     dif_plot = scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps, case_study, obj_mode, scenario_name, output_pdf_path)
+
+
+
+def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, case_study, obj_mode, output_csv_path, output_pdf_path, pickle_output_base,  
+                  pickle_output_alter):
     from util_opt import stock_emission_scenario, plot_scenarios, scenario_dif, stock_emission_scenario_equivalent
+
+    # Ensure output path exists
     if not os.path.exists(output_csv_path):
         os.makedirs(output_csv_path)
-    cbm_output_1, cbm_output_2 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, obj_mode) #alternative optimization
-    # cbm_output_1, cbm_output_2 = stock_emission_scenario_equivalent(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, displacement_effect, hwp_pool_effect_value, release_immediately_value, case_study, obj_mode) # alternativr equivalent
 
-    print(cbm_output_2)
-    cbm_output_2_df = pd.DataFrame(cbm_output_2)  
+    # Define pickle file paths_alter
+    pickle_file_1 = os.path.join(output_csv_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_1.pkl')
+    pickle_file_2 = os.path.join(output_csv_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_2.pkl')
+
+   # Check if pickled cbm_output_1 and cbm_output_2 already exist
+    if pickle_output_alter and os.path.exists(pickle_file_1) and os.path.exists(pickle_file_2):
+        # Load pickle files if they exist
+        with open(pickle_file_1, 'rb') as f:
+            cbm_output_1 = pickle.load(f)
+        with open(pickle_file_2, 'rb') as f:
+            cbm_output_2 = pickle.load(f)
+        print("Loaded cbm_output_1 and cbm_output_2 from pickle files.")
+    else:
+        cbm_output_1, cbm_output_2 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, obj_mode)
+        with open(pickle_file_1, 'wb') as f:
+            pickle.dump(cbm_output_1, f)
+        with open(pickle_file_2, 'wb') as f:
+            pickle.dump(cbm_output_2, f)
+        print("Saved cbm_output_1 and cbm_output_2 as pickle files.")
+
+    # Save cbm_output_2 as CSV
+    cbm_output_2_df = pd.DataFrame(cbm_output_2)
     cbm_output_2_file = os.path.join(output_csv_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_2.csv')
     cbm_output_2_df.to_csv(cbm_output_2_file, index=False)
+    # print(cbm_output_2)
+
     fm.reset()
-    if case_study == 'redchrs':
-        scenario_name = 'bau_redchrs'
-        cbm_output_3, cbm_output_4 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, obj_mode) #base scenario
-    elif case_study == 'eqtslvr':
-        scenario_name = 'bau_eqtslvr'
-        cbm_output_3, cbm_output_4 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, obj_mode) #base scenario
-        cbm_output_4_df = pd.DataFrame(cbm_output_4)  
-        cbm_output_4_df.to_csv(f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_4.csv', index=False)
-    elif case_study == 'gldbr':
-        scenario_name = 'bau_gldbr'
-        cbm_output_3, cbm_output_4 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, obj_mode) #base scenario
-    print(cbm_output_4)
-    cbm_output_4_df = pd.DataFrame(cbm_output_4)  
+
+    # Define pickle file paths_base
+    pickle_file_3 = os.path.join(output_csv_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_3.pkl')
+    pickle_file_4 = os.path.join(output_csv_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_4.pkl')
+
+    # Check if pickled cbm_output_3 and cbm_output_4 already exist
+    if pickle_output_base and os.path.exists(pickle_file_3) and os.path.exists(pickle_file_4):
+        # Load pickle files if they exist
+        with open(pickle_file_3, 'rb') as f:
+            cbm_output_3 = pickle.load(f)
+        with open(pickle_file_4, 'rb') as f:
+            cbm_output_4 = pickle.load(f)
+        print("Loaded cbm_output_3 and cbm_output_4 from pickle files.")
+    else:
+        # Run base scenario if pickle files don't exist
+        if case_study == 'redchrs':
+            scenario_name = 'bau_redchrs'
+        elif case_study == 'eqtslvr':
+            scenario_name = 'bau_eqtslvr'
+        elif case_study == 'gldbr':
+            scenario_name = 'bau_gldbr'
+
+        cbm_output_3, cbm_output_4 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, obj_mode)
+
+        # Save cbm_output_3 and cbm_output_4 as pickle
+        with open(pickle_file_3, 'wb') as f:
+            pickle.dump(cbm_output_3, f)
+        with open(pickle_file_4, 'wb') as f:
+            pickle.dump(cbm_output_4, f)
+        print("Saved cbm_output_3 and cbm_output_4 as pickle files.")
+
+    # Save cbm_output_4 as CSV
+    cbm_output_4_df = pd.DataFrame(cbm_output_4)
     cbm_output_4_file = os.path.join(output_csv_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_4.csv')
     cbm_output_4_df.to_csv(cbm_output_4_file, index=False)
+    # print(cbm_output_4)
 
+    # Plot scenarios
     plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_steps, case_study, obj_mode, scenario_name, output_pdf_path)
+    
+    # Scenario difference plot
     dif_plot = scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps, case_study, obj_mode, scenario_name, output_pdf_path)
-
 
 
 
