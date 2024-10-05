@@ -17,7 +17,7 @@ def schedule_harvest_areacontrol(fm, period=None, acode='harvest', util=0.85,
                                  target_masks=None, target_areas=None,
                                  target_scalefactors=None,
                                  mask_area_thresh=0.,
-                                 verbose=0):
+                                 verbose=0):cmp_c_ci
     if not target_areas:
         if not target_masks: # default to AU-wise THLB 
             au_vals = []
