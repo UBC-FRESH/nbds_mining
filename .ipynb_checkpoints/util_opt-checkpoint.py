@@ -865,25 +865,99 @@ def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, ma
     dif_plot = scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps, case_study, obj_mode, scenario_name, output_pdf_path)
 
 
+# def cbm_report(fm, cbm_output, biomass_pools, dom_pools, fluxes, gross_growth):
+#     # Add carbon pools indicators 
+#     pi = cbm_output.classifiers.to_pandas().merge(cbm_output.pools.to_pandas(), 
+#                                                   left_on=["identifier", "timestep"], 
+#                                                   right_on=["identifier", "timestep"])
+
+#     annual_carbon_stock = pd.DataFrame({'Year': pi['timestep'],
+#                                          'Biomass': pi[biomass_pools].sum(axis=1),
+#                                          'DOM': pi[dom_pools].sum(axis=1),
+#                                          'Ecosystem': pi[biomass_pools + dom_pools].sum(axis=1)})
+    
+#     annual_product_stock = pd.DataFrame({'Year': pi['timestep'],
+#                                          'Product': pi['Products']})
+    
+#     annual_stock_change = annual_carbon_stock[['Year', 'Ecosystem']].copy()
+#     annual_stock_change['Stock_Change'] = annual_stock_change['Ecosystem'].diff()
+#     annual_stock_change = annual_stock_change[['Year', 'Stock_Change']]
+#     annual_stock_change.loc[annual_stock_change['Year'] == 0, 'Stock_Change'] = 0
+     
+#     fi = cbm_output.classifiers.to_pandas().merge(cbm_output.flux.to_pandas(), 
+#                                                   left_on=["identifier", "timestep"], 
+#                                                   right_on=["identifier", "timestep"])
+    
+#     annual_all_emission = pd.DataFrame({'Year': fi['timestep'],
+#                                          'All_Emissions': fi[fluxes].sum(axis=1)})
+    
+#     annual_gross_growth = pd.DataFrame({'Year': fi['timestep'],
+#                                         'Gross_Growth': fi[gross_growth].sum(axis=1)})
+     
+#     n_steps = fm.horizon * fm.period_length
+#     annual_carbon_stock.groupby('Year').sum().plot(
+#         figsize=(5, 5), xlim=(0, n_steps), ylim=(None, None), xlabel="Year", ylabel="Stock (ton C)",
+#         title="Annual Carbon Stock"
+#     )
+
+#     annual_all_emission.groupby('Year').sum().plot(
+#         figsize=(5, 5), xlim=(0, n_steps), ylim=(None, None),
+#         title="Annual Ecosystem Carbon Emission", xlabel="Year", ylabel="Stock (ton C)"
+#     )
+
+#     annual_stock_change.groupby('Year').sum().plot(
+#         figsize=(5, 5), xlim=(0, n_steps), ylim=(None, None),
+#         title="Annual Ecosystem Carbon Stock Change", xlabel="Year", ylabel="tons of C"
+#     )
+
+#     annual_gross_growth.groupby('Year').sum().plot(
+#         figsize=(5, 5), xlim=(0, n_steps), ylim=(None, None),
+#         title="Annual Forest Gross Growth", xlabel="Year", ylabel="tons of C"
+#     )
+
+#     df_cs = annual_carbon_stock.groupby('Year').sum()
+#     df_ae = annual_all_emission.groupby('Year').sum()
+#     df_gg = annual_gross_growth.groupby('Year').sum()
+#     df_sc = annual_stock_change.groupby('Year').sum()
+    
+#     # Show the results (tables)
+#     print("\n--- Annual Carbon Stock ---")
+#     print(df_cs)
+    
+#     print("\n--- Annual Ecosystem Carbon Emissions ---")
+#     print(df_ae)
+    
+#     print("\n--- Annual Forest Gross Growth ---")
+#     print(df_gg)
+    
+#     print("\n--- Annual Stock Change ---")
+#     print(df_sc)
+
+#     # Optionally, return the DataFrames for external use
+#     return df_cs, df_ae, df_gg, df_sc
 def cbm_report(fm, cbm_output, biomass_pools, dom_pools, fluxes, gross_growth):
     # Add carbon pools indicators 
     pi = cbm_output.classifiers.to_pandas().merge(cbm_output.pools.to_pandas(), 
                                                   left_on=["identifier", "timestep"], 
                                                   right_on=["identifier", "timestep"])
 
+    # Create annual carbon stock DataFrame
     annual_carbon_stock = pd.DataFrame({'Year': pi['timestep'],
                                          'Biomass': pi[biomass_pools].sum(axis=1),
                                          'DOM': pi[dom_pools].sum(axis=1),
                                          'Ecosystem': pi[biomass_pools + dom_pools].sum(axis=1)})
     
+    # Create annual product stock DataFrame (optional, not needed in the final output)
     annual_product_stock = pd.DataFrame({'Year': pi['timestep'],
                                          'Product': pi['Products']})
     
+    # Create annual stock change DataFrame
     annual_stock_change = annual_carbon_stock[['Year', 'Ecosystem']].copy()
     annual_stock_change['Stock_Change'] = annual_stock_change['Ecosystem'].diff()
     annual_stock_change = annual_stock_change[['Year', 'Stock_Change']]
     annual_stock_change.loc[annual_stock_change['Year'] == 0, 'Stock_Change'] = 0
      
+    # Create emissions DataFrame
     fi = cbm_output.classifiers.to_pandas().merge(cbm_output.flux.to_pandas(), 
                                                   left_on=["identifier", "timestep"], 
                                                   right_on=["identifier", "timestep"])
@@ -891,34 +965,44 @@ def cbm_report(fm, cbm_output, biomass_pools, dom_pools, fluxes, gross_growth):
     annual_all_emission = pd.DataFrame({'Year': fi['timestep'],
                                          'All_Emissions': fi[fluxes].sum(axis=1)})
     
+    # Create gross growth DataFrame
     annual_gross_growth = pd.DataFrame({'Year': fi['timestep'],
                                         'Gross_Growth': fi[gross_growth].sum(axis=1)})
      
+    # Merge all the DataFrames into one final DataFrame based on 'Year'
+    final_df = pd.merge(annual_carbon_stock, annual_all_emission, on='Year', how='left')
+    final_df = pd.merge(final_df, annual_gross_growth, on='Year', how='left')
+    final_df = pd.merge(final_df, annual_stock_change, on='Year', how='left')
+
+    # Optional: set 'Year' as the index (if you prefer the format with 'Year' as an index)
+    final_df.set_index('Year', inplace=True)
+
+    # Show the final table
+    print("\n--- Final Carbon Report ---")
+    print(final_df)
+
+    # Plot the graphs as before (optional)
     n_steps = fm.horizon * fm.period_length
-    annual_carbon_stock.groupby('Year').sum().plot(
+    final_df[['Biomass', 'DOM', 'Ecosystem']].plot(
         figsize=(5, 5), xlim=(0, n_steps), ylim=(None, None), xlabel="Year", ylabel="Stock (ton C)",
         title="Annual Carbon Stock"
     )
-
-    annual_all_emission.groupby('Year').sum().plot(
+    final_df[['All_Emissions']].plot(
         figsize=(5, 5), xlim=(0, n_steps), ylim=(None, None),
         title="Annual Ecosystem Carbon Emission", xlabel="Year", ylabel="Stock (ton C)"
     )
-
-    annual_stock_change.groupby('Year').sum().plot(
+    final_df[['Stock_Change']].plot(
         figsize=(5, 5), xlim=(0, n_steps), ylim=(None, None),
         title="Annual Ecosystem Carbon Stock Change", xlabel="Year", ylabel="tons of C"
     )
-
-    annual_gross_growth.groupby('Year').sum().plot(
+    final_df[['Gross_Growth']].plot(
         figsize=(5, 5), xlim=(0, n_steps), ylim=(None, None),
         title="Annual Forest Gross Growth", xlabel="Year", ylabel="tons of C"
     )
 
-    df_cs = annual_carbon_stock.groupby('Year').sum()
-    df_ae = annual_all_emission.groupby('Year').sum()
-    df_gg = annual_gross_growth.groupby('Year').sum()
-    df_sc = annual_stock_change.groupby('Year').sum()
+    # Return the final DataFrame
+    return final_df
+    
 
 def compare_ws3_cbm(fm, cbm_output, disturbance_type_mapping, biomass_pools, dom_pools, plots):
     import numpy as np
@@ -1106,3 +1190,84 @@ def plugin_c_curves(fm, c_curves_p, pools):
         # Add the processed mask to the set
         processed_masks.add(mask)
 
+def compile_events(self, softwood_volume_yname, hardwood_volume_yname, n_yield_vals):
+    
+    def leading_species(dt):
+        """
+        Determine if softwood or hardwood leading species by comparing softwood and hardwood
+        volume at peak MAI age.
+        """
+        svol_curve, hvol_curve = dt.ycomp(softwood_volume_yname), dt.ycomp(hardwood_volume_yname)
+        tvol_curve = svol_curve + hvol_curve
+        x_cmai = tvol_curve.mai().ytp().lookup(0)
+        return 'softwood' if svol_curve[x_cmai] > hvol_curve[x_cmai] else 'hardwood'
+
+    for dtype_key in self.dtypes:
+        dt = self.dt(dtype_key)
+        dt.leading_species = leading_species(dt)
+    
+    theme_cols = [theme['__name__'] for theme in self._themes]
+    columns = theme_cols.copy()
+    columns += ['species',
+                'using_age_class',
+                'min_softwood_age',
+                'max_softwood_age',
+                'min_hardwood_age',
+                'max_hardwood_age',
+                'MinYearsSinceDist',
+                'MaxYearsSinceDist',
+                'LastDistTypeID',
+                'MinTotBiomassC',
+                'MaxTotBiomassC',
+                'MinSWMerchBiomassC',
+                'MaxSWMerchBiomassC',
+                'MinHWMerchBiomassC',
+                'MaxHWMerchBiomassC',
+                'MinTotalStemSnagC',
+                'MaxTotalStemSnagC',	
+                'MinSWStemSnagC',
+                'MaxSWStemSnagC',
+                'MinHWStemSnagC',
+                'MaxHWStemSnagC',
+                'MinTotalStemSnagMerchC',
+                'MaxTotalStemSnagMerchC',
+                'MinSWMerchStemSnagC',
+                'MaxSWMerchStemSnagC',
+                'MinHWMerchStemSnagC',
+                'MaxHWMerchStemSnagC',
+                'efficiency',
+                'sort_type',
+                'target_type',
+                'target',
+                'disturbance_type',
+                'disturbance_year']
+    data = {c:[] for c in columns}
+    for dtype_key, age, area, acode, period, _ in self.compile_schedule():
+        #set_trace()
+        for i, c in enumerate(theme_cols): data[c].append(dtype_key[i])
+        data['species'].append(self.dt(dtype_key).leading_species)
+        data['using_age_class'].append('FALSE')
+        #############################################################################
+        # might need to be more flexible with age range, to avoid OBO bugs and such?
+        data['min_softwood_age'].append(-1)
+        data['max_softwood_age'].append(-1)
+        data['min_hardwood_age'].append(-1)
+        data['max_hardwood_age'].append(-1)
+        # data['min_softwood_age'].append(age)
+        # data['max_softwood_age'].append(age)
+        # data['min_hardwood_age'].append(age)
+        # data['max_hardwood_age'].append(age)
+        #############################################################################
+        for c in columns[11:-6]: data[c].append(-1)
+        data['efficiency'].append(1)
+        data['sort_type'].append(3) # oldest first (see Table 3-3 in the CBM-CFS3 user guide)
+        data['target_type'].append('A') # area target
+        data['target'].append(area)
+        data['disturbance_type'].append(acode)
+        data['disturbance_year'].append((period-1)*self.period_length+1)
+        # if period == 1:
+        #     data['disturbance_year'].append(1)
+        # else:
+        #     data['disturbance_year'].append((period-1)*self.period_length)
+    sit_events = pd.DataFrame(data)         
+    return sit_events
