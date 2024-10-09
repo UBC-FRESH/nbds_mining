@@ -919,90 +919,23 @@ def cbm_report(fm, cbm_output, biomass_pools, dom_pools, fluxes, gross_growth):
     df_ae = annual_all_emission.groupby('Year').sum()
     df_gg = annual_gross_growth.groupby('Year').sum()
     df_sc = annual_stock_change.groupby('Year').sum()
-    
-    # Show the results (tables)
-    print("\n--- Annual Carbon Stock ---")
-    print(df_cs)
-    
-    print("\n--- Annual Ecosystem Carbon Emissions ---")
-    print(df_ae)
-    
-    print("\n--- Annual Forest Gross Growth ---")
-    print(df_gg)
-    
-    print("\n--- Annual Stock Change ---")
-    print(df_sc)
 
-    # Optionally, return the DataFrames for external use
-    return df_cs, df_ae, df_gg, df_sc
+    # Correctly merging all dataframes
+    merged_df = pd.merge(pd.merge(pd.merge(df_cs, df_ae, left_index=True, right_index=True, how='outer'),
+                                  df_gg, left_index=True, right_index=True, how='outer'),
+                         df_sc, left_index=True, right_index=True, how='outer')
 
-# def cbm_report(fm, cbm_output, biomass_pools, dom_pools, fluxes, gross_growth):
-#     # Add carbon pools indicators 
-#     pi = cbm_output.classifiers.to_pandas().merge(cbm_output.pools.to_pandas(), 
-#                                                   left_on=["identifier", "timestep"], 
-#                                                   right_on=["identifier", "timestep"])
+    merged_df['Stock_Change'] = merged_df['Ecosystem'].diff() * (-1)
+    merged_df.at[0, 'Stock_Change'] = 0
 
-#     # Create annual carbon stock DataFrame
-#     annual_carbon_stock = pd.DataFrame({'Year': pi['timestep'],
-#                                          'Biomass': pi[biomass_pools].sum(axis=1),
-#                                          'DOM': pi[dom_pools].sum(axis=1),
-#                                          'Ecosystem': pi[biomass_pools + dom_pools].sum(axis=1)})
-    
-#     # Create annual product stock DataFrame (optional, not needed in the final output)
-#     annual_product_stock = pd.DataFrame({'Year': pi['timestep'],
-#                                          'Product': pi['Products']})
-    
-#     # Create annual stock change DataFrame
-#     annual_stock_change = annual_carbon_stock[['Year', 'Ecosystem']].copy()
-#     annual_stock_change['Stock_Change'] = annual_stock_change['Ecosystem'].diff()
-#     annual_stock_change = annual_stock_change[['Year', 'Stock_Change']]
-#     annual_stock_change.loc[annual_stock_change['Year'] == 0, 'Stock_Change'] = 0
-     
-#     # Create emissions DataFrame
-#     fi = cbm_output.classifiers.to_pandas().merge(cbm_output.flux.to_pandas(), 
-#                                                   left_on=["identifier", "timestep"], 
-#                                                   right_on=["identifier", "timestep"])
-    
-#     annual_all_emission = pd.DataFrame({'Year': fi['timestep'],
-#                                          'All_Emissions': fi[fluxes].sum(axis=1)})
-    
-#     # Create gross growth DataFrame
-#     annual_gross_growth = pd.DataFrame({'Year': fi['timestep'],
-#                                         'Gross_Growth': fi[gross_growth].sum(axis=1)})
-     
-#     # Merge all the DataFrames into one final DataFrame based on 'Year'
-#     final_df = pd.merge(annual_carbon_stock, annual_all_emission, on='Year', how='left')
-#     final_df = pd.merge(final_df, annual_gross_growth, on='Year', how='left')
-#     final_df = pd.merge(final_df, annual_stock_change, on='Year', how='left')
+    return merged_df
 
-#     # Optional: set 'Year' as the index (if you prefer the format with 'Year' as an index)
-#     final_df.set_index('Year', inplace=True)
 
-#     # Show the final table
-#     print("\n--- Final Carbon Report ---")
-#     print(final_df)
 
-#     # Plot the graphs as before (optional)
-#     n_steps = fm.horizon * fm.period_length
-#     final_df[['Biomass', 'DOM', 'Ecosystem']].plot(
-#         figsize=(5, 5), xlim=(0, n_steps), ylim=(None, None), xlabel="Year", ylabel="Stock (ton C)",
-#         title="Annual Carbon Stock"
-#     )
-#     final_df[['All_Emissions']].plot(
-#         figsize=(5, 5), xlim=(0, n_steps), ylim=(None, None),
-#         title="Annual Ecosystem Carbon Emission", xlabel="Year", ylabel="Stock (ton C)"
-#     )
-#     final_df[['Stock_Change']].plot(
-#         figsize=(5, 5), xlim=(0, n_steps), ylim=(None, None),
-#         title="Annual Ecosystem Carbon Stock Change", xlabel="Year", ylabel="tons of C"
-#     )
-#     final_df[['Gross_Growth']].plot(
-#         figsize=(5, 5), xlim=(0, n_steps), ylim=(None, None),
-#         title="Annual Forest Gross Growth", xlabel="Year", ylabel="tons of C"
-#     )
 
-#     # Return the final DataFrame
-#     return final_df
+
+
+
     
 
 def compare_ws3_cbm(fm, cbm_output, disturbance_type_mapping, biomass_pools, dom_pools, plots):
@@ -1025,6 +958,11 @@ def compare_ws3_cbm(fm, cbm_output, disturbance_type_mapping, biomass_pools, dom
                            'biomass_stock': [sum(fm.inventory(period, pool) for pool in ['biomass']) for period in fm.periods],
                            'dom_stock': [sum(fm.inventory(period, pool) for pool in ['DOM']) for period in fm.periods],
                            'eco_stock': [sum(fm.inventory(period, pool) for pool in ['ecosystem']) for period in fm.periods]})
+  
+    # df_ws3 = pd.DataFrame({'period': fm.periods,
+    #                        'biomass_stock': [sum(fm.inventory(period, pool)/fm.inventory(period) for pool in ['biomass']) for period in fm.periods],
+    #                        'dom_stock': [sum(fm.inventory(period, pool)/fm.inventory(period) for pool in ['DOM']) for period in fm.periods],
+    #                        'eco_stock': [sum(fm.inventory(period, pool)/fm.inventory(period) for pool in ['ecosystem']) for period in fm.periods]})
 
     df_ws3['eco_stock_change'] = df_ws3['eco_stock'].diff()
     df_ws3.at[0, 'eco_stock_change'] = 0.
@@ -1135,30 +1073,6 @@ def compare_ws3_cbm(fm, cbm_output, disturbance_type_mapping, biomass_pools, dom
 #         #points = c_curves_p
 
 
-
-
-
-def plugin_c_curves(fm, c_curves_p, pools):
-    # for dtype_key in dt_tuples:
-    for dtype_key in fm.dtypes:
-        dt = fm.dt(dtype_key)
-        mask = ('?', '?', '?', '?', dtype_key[4], dtype_key[5])
-        for _mask, ytype, curves in fm.yields:
-            if _mask != mask: continue # we know there will be a match so this works
-            print('found match for mask', mask)
-            # print('found match for development key', dtype_key)
-            pool_data = c_curves_p.loc[' '.join(dtype_key)]
-            for yname in pools:
-                points = list(zip(pool_data.index.values, pool_data[yname]))
-                curve = fm.register_curve(ws3.core.Curve(yname, 
-                                                         points=points, 
-                                                         type='a', 
-                                                         is_volume=False,
-                                                         xmax=fm.max_age,
-                                                         period_length=fm.period_length))
-                curves.append((yname, curve))
-                dt.add_ycomp('a', yname, curve)
-
 #Without repeatition
 # def plugin_c_curves(fm, c_curves_p, pools):
 #     processed_masks = set()  # To track processed masks
@@ -1190,6 +1104,30 @@ def plugin_c_curves(fm, c_curves_p, pools):
         
         # Add the processed mask to the set
         # processed_masks.add(mask)
+
+def plugin_c_curves(fm, c_curves_p, pools):
+    # for dtype_key in dt_tuples:
+    for dtype_key in fm.dtypes:
+        dt = fm.dt(dtype_key)
+        mask = ('?', '?', '?', '?', dtype_key[4], dtype_key[5])
+        for _mask, ytype, curves in fm.yields:
+            if _mask != mask: continue # we know there will be a match so this works
+            print('found match for mask', mask)
+            # print('found match for development key', dtype_key)
+            pool_data = c_curves_p.loc[' '.join(dtype_key)]
+            for yname in pools:
+                points = list(zip(pool_data.index.values, pool_data[yname]))
+                curve = fm.register_curve(ws3.core.Curve(yname, 
+                                                         points=points, 
+                                                         type='a', 
+                                                         is_volume=False,
+                                                         xmax=fm.max_age,
+                                                         period_length=fm.period_length))
+                curves.append((yname, curve))
+                dt.add_ycomp('a', yname, curve)
+
+
+
 
 def compile_events(self, softwood_volume_yname, hardwood_volume_yname, n_yield_vals):
     
