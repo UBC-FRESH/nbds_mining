@@ -959,10 +959,6 @@ def compare_ws3_cbm(fm, cbm_output, disturbance_type_mapping, biomass_pools, dom
                            'dom_stock': [sum(fm.inventory(period, pool) for pool in ['DOM']) for period in fm.periods],
                            'eco_stock': [sum(fm.inventory(period, pool) for pool in ['ecosystem']) for period in fm.periods]})
   
-    # df_ws3 = pd.DataFrame({'period': fm.periods,
-    #                        'biomass_stock': [sum(fm.inventory(period, pool)/fm.inventory(period) for pool in ['biomass']) for period in fm.periods],
-    #                        'dom_stock': [sum(fm.inventory(period, pool)/fm.inventory(period) for pool in ['DOM']) for period in fm.periods],
-    #                        'eco_stock': [sum(fm.inventory(period, pool)/fm.inventory(period) for pool in ['ecosystem']) for period in fm.periods]})
 
     df_ws3['eco_stock_change'] = df_ws3['eco_stock'].diff()
     df_ws3.at[0, 'eco_stock_change'] = 0.
@@ -1037,6 +1033,104 @@ def compare_ws3_cbm(fm, cbm_output, disturbance_type_mapping, biomass_pools, dom
 
     return df_cbm, df_ws3
 
+def compare_ws3_cbm_exactmatch(fm, cbm_output, disturbance_type_mapping, biomass_pools, dom_pools, plots):
+    import numpy as np
+    eco_pools = biomass_pools + dom_pools
+    pi = cbm_output.classifiers.to_pandas().merge(cbm_output.pools.to_pandas(), 
+                                                  left_on=["identifier", "timestep"], 
+                                                  right_on=["identifier", "timestep"])
+
+    df_cbm = pd.DataFrame({'period': pi["timestep"] * 0.1, 
+                       'biomass_stock': pi[biomass_pools].sum(axis=1),
+                       'dom_stock': pi[dom_pools].sum(axis=1),
+                       'eco_stock': pi[eco_pools].sum(axis=1)}).groupby('period').sum().iloc[1::10, :].reset_index()
+    df_cbm['period'] = (df_cbm['period'] + 0.9).astype(int)
+
+    df_cbm['eco_stock_change'] = df_cbm['eco_stock'].diff()
+    df_cbm.at[0, 'eco_stock_change'] = 0.
+
+    # df_ws3 = pd.DataFrame({'period': fm.periods,
+    #                        'biomass_stock': [sum(fm.inventory(period, pool) for pool in ['biomass']) for period in fm.periods],
+    #                        'dom_stock': [sum(fm.inventory(period, pool) for pool in ['DOM']) for period in fm.periods],
+    #                        'eco_stock': [sum(fm.inventory(period, pool) for pool in ['ecosystem']) for period in fm.periods]})
+  
+    df_ws3 = pd.DataFrame({'period': fm.periods,
+                           'biomass_stock': [sum(fm.inventory(period, pool)/fm.inventory(period) for pool in ['biomass']) for period in fm.periods],
+                           'dom_stock': [sum(fm.inventory(period, pool)/fm.inventory(period) for pool in ['DOM']) for period in fm.periods],
+                           'eco_stock': [sum(fm.inventory(period, pool)/fm.inventory(period) for pool in ['ecosystem']) for period in fm.periods]})
+
+    df_ws3['eco_stock_change'] = df_ws3['eco_stock'].diff()
+    df_ws3.at[0, 'eco_stock_change'] = 0.
+
+    if plots == "whole":
+        # Create a figure for all comparisons in one plot
+        plt.figure(figsize=(10, 6))
+    
+        # Plotting the ecosystem stock comparison
+        plt.plot(df_cbm['period'], df_cbm['eco_stock'], label='CBM Ecosystem Stock')
+        plt.plot(df_ws3['period'], df_ws3['eco_stock'], label='WS3 Ecosystem Stock')
+    
+        # Plotting the biomass stock comparison
+        plt.plot(df_cbm['period'], df_cbm['biomass_stock'], label='CBM Biomass Stock')
+        plt.plot(df_ws3['period'], df_ws3['biomass_stock'], label='WS3 Biomass Stock')
+    
+        # Plotting the DOM stock comparison
+        plt.plot(df_cbm['period'], df_cbm['dom_stock'], label='CBM DOM Stock')
+        plt.plot(df_ws3['period'], df_ws3['dom_stock'], label='WS3 DOM Stock')
+    
+        # Set labels and title
+        plt.xlabel('Period')
+        plt.ylabel('Stock (ton C)')
+        plt.ylim(0, None)  # Ensure y-axis starts from 0
+    
+        # Customize x-axis ticks to show every 2 periods
+        ticks = np.arange(df_cbm['period'].min()-1, df_cbm['period'].max() + 1, 2)
+        plt.xticks(ticks)
+        
+        # Add a legend to differentiate the lines
+        plt.legend()
+
+    if plots == "individual":
+        # Create a figure with subplots
+        fig, axs = plt.subplots(3, 1, figsize=(8, 12))
+        
+        # Define x-axis ticks (0 to 20 with a step of 2)
+        ticks = np.arange(df_cbm['period'].min()-1, df_cbm['period'].max() + 1, 2)
+        
+        # Plotting the ecosystem stock comparison
+        axs[0].plot(df_cbm['period'], df_cbm['eco_stock'], label='cbm ecosystem stock')
+        axs[0].plot(df_ws3['period'], df_ws3['eco_stock'], label='ws3 ecosystem stock')
+        axs[0].set_xlabel('Period')
+        axs[0].set_ylabel('Stock (ton C)')
+        # axs[0].set_ylim(0, None)  # Set y-axis to start from 0
+        axs[0].set_xticks(ticks)  # Set x-axis ticks to show every 2 periods
+        axs[0].legend()
+        
+        # Plotting the biomass stock comparison
+        axs[1].plot(df_cbm['period'], df_cbm['biomass_stock'], label='cbm biomass stock')
+        axs[1].plot(df_ws3['period'], df_ws3['biomass_stock'], label='ws3 biomass stock')
+        axs[1].set_xlabel('Period')
+        axs[1].set_ylabel('Stock (ton C)')
+        # axs[1].set_ylim(0, None)  # Set y-axis to start from 0
+        axs[1].set_xticks(ticks)  # Set x-axis ticks to show every 2 periods
+        axs[1].legend()
+        
+        # Plotting the DOM stock comparison
+        axs[2].plot(df_cbm['period'], df_cbm['dom_stock'], label='cbm dom stock')
+        axs[2].plot(df_ws3['period'], df_ws3['dom_stock'], label='ws3 dom stock')
+        axs[2].set_xlabel('Period')
+        axs[2].set_ylabel('Stock (ton C)')
+        # axs[2].set_ylim(0, None)  # Set y-axis to start from 0
+        axs[2].set_xticks(ticks)  # Set x-axis ticks to show every 2 periods
+        axs[2].legend()
+
+    # Adjust layout to prevent overlap
+    plt.tight_layout()
+
+    # Show the combined plot
+    plt.show()
+
+    return df_cbm, df_ws3
                 
 # def plugin_c_curves(fm, c_curves_p, c_curves_f, pools, fluxes):
 #     # for dtype_key in dt_tuples:
