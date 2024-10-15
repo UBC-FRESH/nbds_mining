@@ -443,33 +443,72 @@ def plot_scenario_maxstock(df):
     
 #     return result
 
+# def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=0.5, mask=None):
+#     """
+#     Compile objective function coefficient for total system carbon stock indicators (given ForestModel instance, 
+#     leaf-to-root-node path, and expression to evaluate).
+#     """
+#     k_wood = math.log(2) / half_life_solid_wood  # Decay rate for solid wood products (30-year half-life)
+#     k_paper = math.log(2) / half_life_paper  # Decay rate for paper (2-year half-life)
+#     wood_density = 460
+#     carbon_content = 0.5
+#     result = 0.
+#     hwp_accu_wood = 0.
+#     hwp_accu_paper = 0.
+    
+#     for t, n in enumerate(path, start=1):        
+#         d = n.data()    
+#         if fm.is_harvest(d['acode']):
+#             result_hwp = fm.compile_product(t, expr, d['acode'], [d['dtk']], d['age'], coeff=False)
+#             hwp_accu_wood += hwp_accu_wood * (1-k_wood)**10 + result_hwp * (proportion_solid_wood) * wood_density * carbon_content / 1000 # Convert kg to ton
+#             hwp_accu_paper += hwp_accu_paper * (1-k_wood)**10 + result_hwp * (1- proportion_solid_wood) * wood_density * carbon_content / 1000 # Convert kg to ton
+#             result += hwp_accu_wood + hwp_accu_paper
+#             # result = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
+#             # ecosystem = fm.inventory(t, 'ecosystem', age=d['_age'], dtype_keys=[d['_dtk']])
+#             # dom = fm.inventory(t, 'DOM', age=d['_age'], dtype_keys=[d['_dtk']])
+#             # print(f'Ecosystem: {ecosystem}')
+#             # print(f'DOM: {dom}')
+#             # print(f'ratio: {(ecosytem-dom)/dom}')
+#             # print('______________________________________________________________')
+#         else:
+#             result = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
+
+#     return result
+
 def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=0.5, mask=None):
     """
     Compile objective function coefficient for total system carbon stock indicators (given ForestModel instance, 
     leaf-to-root-node path, and expression to evaluate).
     """
+    # k_wood = math.log(2) / half_life_solid_wood  # Decay rate for solid wood products (30-year half-life)
+    # k_paper = math.log(2) / half_life_paper  # Decay rate for paper (2-year half-life)
+    k_wood = 0
+    k_paper = 0
+    wood_density = 460
+    carbon_content = 0.5
     result = 0.
     hwp_accu_wood = 0.
-    hwp_accu_paper = 0.
-    k_wood = 0.05
-    k_paper = 0.1
+    hwp_accu_paper = 0.   
     for t, n in enumerate(path, start=1):        
         d = n.data()    
+        if mask and not fm.match_mask(mask, d['_dtk']): continue
         if fm.is_harvest(d['acode']):
-            result_hwp = fm.compile_product(t, expr, d['acode'], [d['dtk']], d['age'], coeff=False)
-            hwp_accu_wood += hwp_accu_wood * (1-k_wood)**10 + result_hwp * (proportion_solid_wood)
-            hwp_accu_paper += hwp_accu_paper * (1-k_wood)**10 + result_hwp * (1- proportion_solid_wood)
+            result_hwp = (fm.compile_product(t, expr, d['acode'], [d['dtk']], d['age'], coeff=False) * wood_density * carbon_content)/1000
+            hwp_accu_wood += (hwp_accu_wood * (1-k_wood)**10 + result_hwp * (proportion_solid_wood)) 
+            hwp_accu_paper += (hwp_accu_paper * (1-k_paper)**10 + result_hwp * (1- proportion_solid_wood))  
+            # ecosystem = fm.inventory(t, 'DOM', age=d['_age'], dtype_keys=[d['_dtk']])
             result += hwp_accu_wood + hwp_accu_paper
-            result = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
-            # ecosystem = fm.inventory(t, 'ecosystem', age=d['_age'], dtype_keys=[d['_dtk']])
+            # result = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
             # dom = fm.inventory(t, 'DOM', age=d['_age'], dtype_keys=[d['_dtk']])
             # print(f'Ecosystem: {ecosystem}')
             # print(f'DOM: {dom}')
-            # print(f'ratio: {(ecosytem-dom)/dom}')
+            # print(f'ratio: {(ecosystem-dom)/dom}')
             # print('______________________________________________________________')
         else:
-            result = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
+            result += fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
 
+    
+        result += fm.inventory(0, yname, age=d['_age'], dtype_keys=[d['_dtk']])
     return result
 ##############################
 
@@ -555,7 +594,7 @@ def gen_scenario(fm, name='base', util=0.85, harvest_acode='harvest',
     elif obj_mode == 'min_ha':
         coeff_funcs['z'] = partial(cmp_c_z, expr=zexpr) # define objective function coefficient function for max_hv and min_ha
     elif obj_mode == 'max_st':
-        coeff_funcs['z'] = partial(cmp_c_ss, expr=vexpr, yname=cp_name) # define objective function coefficient function for total system carbon stock
+        coeff_funcs['z'] = partial(cmp_c_ss, expr=zexpr, yname=cp_name) # define objective function coefficient function for total system carbon stock
     else:
         raise ValueError('Invalid obj_mode: %s' % obj_mode)
 
@@ -619,7 +658,7 @@ def run_scenario(fm, obj_mode, scenario_name='base'):
     # Red Chris Scenarios
     elif scenario_name == 'bau_redchrs': 
         # Business as usual scenario for the Red Chris mining site: 
-        print('running business as usual scenario for the Red Chris mining site')
+        print('running business as usual scenario for the Red Chris mining site,')
         cgen_hv = {'lb':{1:aac_red}, 'ub':{1:aac_red}} 
         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
@@ -704,11 +743,16 @@ def run_scenario(fm, obj_mode, scenario_name='base'):
                       recourse_enabled=False,
                       verbose=False,
                       compile_c_ycomps=True)
-    df = compile_scenario(fm)
-    plot_scenario(df)
+    
+    if obj_mode == 'max_hv' or obj_mode == 'min_ha':
+        df = compile_scenario(fm)
+        plot_scenario(df)
+    elif obj_mode == 'max_st':
+        df = compile_scenario_maxstock(fm)
+        plot_scenario_maxstock(df) 
+    else:
+        raise ValueError('Invalid obj_mode: %s' % obj_mode) 
     return sch
-
-
 ##############################################################
 # Implement a simple function to run CBM from ws3 export data
 ##############################################################
