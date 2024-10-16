@@ -306,209 +306,260 @@ def plot_scenario_maxstock(df):
     # ax[4].set_xlabel('Period')
     # ax[4].set_ylabel('tons of C')
     return fig, ax
+    
 ################################################
 # Optimization
 ################################################
-
-#############
-# Max stock obj coef.
-
-# def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=100, half_life_paper=2, proportion_solid_wood=1, mask=None):
+# def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=1, mask=None):
 #     """
 #     Compile objective function coefficient for total system carbon stock indicators (given ForestModel instance, 
 #     leaf-to-root-node path, and expression to evaluate).
 #     """
-    
-#     result = 0.
-    
-#     # Calculate decay rates based on half-lives
-#     k_solid_wood = math.log(2) / half_life_solid_wood  # Decay rate for solid wood products (30-year half-life)
-#     k_paper = math.log(2) / half_life_paper  # Decay rate for paper (2-year half-life)
-    
-#     # Define the allocation distribution
-#     proportion_paper = 1 - proportion_solid_wood
-    
-#     # wood density (Kennedy, 1965)
-#     wood_density = 460
-
-#     # carbon content
-#     carbon_content = 0.5
-    
-#     # k_solid_wood = 0 # Decay rate for solid wood products (0-year half-life)
-#     # k_paper = 0 # Decay rate for paper (0-year half-life)
-    
-#     product_stock_dict = {}  # Dictionary to track product stock for each node across iterations
-    
-#     for t, n in enumerate(path, start=1):
-
-#         d = n.data()
-#         node_id = id(n)  # or another unique identifier specific to your application
-        
-#         # Track the ecosystem carbon stock
-#         if mask and not fm.match_mask(mask, d['_dtk']): continue
-#         result = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
-        
-#         # Retrieve the last tuple of stocks from the dictionary
-#         last_stocks = next(reversed(product_stock_dict.values()), (0, 0))
-#         old_product_stock_solid_wood, old_product_stock_paper = last_stocks
-        
-#         if fm.is_harvest(d['acode']):
-#             # Calculate new product stock
-#             new_product_carbon = fm.compile_product(t, expr, d['acode'], [d['dtk']], d['age'], coeff=False) * wood_density * carbon_content / 1000 # Convert kg to ton
-#             new_product_stock_solid_wood = new_product_carbon * proportion_solid_wood
-#             new_product_stock_paper = new_product_carbon * proportion_paper 
-
-#             # Apply decay to old stocks and add new stocks
-#             # Apply decay to all stocks within the same period they're produced
-#             sum_product_stock_solid_wood = old_product_stock_solid_wood * (1 - k_solid_wood)**10 + new_product_stock_solid_wood
-#             sum_product_stock_paper = (old_product_stock_paper) * (1 - k_paper)**10 + new_product_stock_paper
-        
-#         else:
-#             # If not harvesting, simply apply decay to the old product stocks
-#             sum_product_stock_solid_wood = old_product_stock_solid_wood * (1 - k_solid_wood)
-#             sum_product_stock_paper = old_product_stock_paper * (1 - k_paper)
-            
-#         # Update product_stock_dict with the new sum product stocks for this node
-#         product_stock_dict[node_id] = (sum_product_stock_solid_wood, sum_product_stock_paper)
-
-#         ecosystem_stock = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
-#         result = ecosystem_stock + sum_product_stock_solid_wood + sum_product_stock_paper
-        
-#     return result
-
-# def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=0.5, mask=None):
-#     """
-#     Compile objective function coefficient for total system carbon stock indicators (given ForestModel instance, 
-#     leaf-to-root-node path, and expression to evaluate).
-#     """
-#     half_life_solid_wood = 30
-#     half_life_paper = 2
-
-#     result = 0.
-    
-#     # Calculate decay rates based on half-lives
-#     k_solid_wood = math.log(2) / half_life_solid_wood  # Decay rate for solid wood products (30-year half-life)
-#     k_paper = math.log(2) / half_life_paper  # Decay rate for paper (2-year half-life)
-    
-#     # Define the allocation distribution
-#     proportion_paper = 1 - proportion_solid_wood
-    
-#     # wood density (Kennedy, 1965)
-#     wood_density = 460
-
-#     # carbon content
-#     carbon_content = 0.5
-    
-#     for t, n in enumerate(path, start=1):
-        
-#         d = n.data()
-#         node_id = id(n)  # or another unique identifier specific to your application
-#         # print(f"Timestep: {t}, Node ID: {node_id}")
-        
-#         # Track the ecosystem carbon stock
-#         if mask and not fm.match_mask(mask, d['dtk']): continue
-#         ecosystem_stock = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
-        
-#         # Extract the old HWPs carbon stock
-#         if t == 1:
-#             old_product_carbon_solid_wood = 0.
-#             old_product_carbon_paper = 0.
-#         else:    
-#             # parent_node = path[n._parent-1]
-#             parent_node = path[t-2]                
-#             old_product_carbon_solid_wood = parent_node.product_carbon_solid_wood
-#             old_product_carbon_paper = parent_node.product_carbon_paper
-            
-#         # Track the new HWPs stock
-#         if fm.is_harvest(d['acode']):             
-#             # Calculate new product stock
-#             new_product_carbon_biomass = fm.compile_product(t, expr, d['acode'], [d['dtk']], d['age'], coeff=False) * wood_density * carbon_content / 1000  # Convert kg to ton
-#         else:
-#             new_product_carbon_biomass = 0.
-
-#         # Allocate the new HWPs carbon stock
-#         new_product_carbon_solid_wood = new_product_carbon_biomass * proportion_solid_wood
-#         new_product_carbon_paper =  new_product_carbon_biomass * proportion_paper
-        
-#         # Calculate the sum of HWPs carbon stock  
-#         sum_product_carbon_solid_wood = old_product_carbon_solid_wood* (1 - k_solid_wood)**10 + new_product_carbon_solid_wood
-#         sum_product_carbon_paper = old_product_carbon_paper * (1 - k_paper)**10 + new_product_carbon_paper
-
-#         # Assign HPWs carbon attributes to the node
-#         n.product_carbon_solid_wood = sum_product_carbon_solid_wood
-#         n.product_carbon_paper = sum_product_carbon_paper
-
-#         # Accumlate the total system carbon stock in each timestep
-#         result += (ecosystem_stock + sum_product_carbon_solid_wood + sum_product_carbon_paper)
-    
-#     return result
-
-# def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=0.5, mask=None):
-#     """
-#     Compile objective function coefficient for total system carbon stock indicators (given ForestModel instance, 
-#     leaf-to-root-node path, and expression to evaluate).
-#     """
-#     k_wood = math.log(2) / half_life_solid_wood  # Decay rate for solid wood products (30-year half-life)
-#     k_paper = math.log(2) / half_life_paper  # Decay rate for paper (2-year half-life)
+#     # k_wood = math.log(2) / half_life_solid_wood  # Decay rate for solid wood products (30-year half-life)
+#     # k_paper = math.log(2) / half_life_paper  # Decay rate for paper (2-year half-life)
+#     k_wood = 0
+#     k_paper = 0
 #     wood_density = 460
 #     carbon_content = 0.5
 #     result = 0.
 #     hwp_accu_wood = 0.
 #     hwp_accu_paper = 0.
-    
+#     ecosystem = 0.
 #     for t, n in enumerate(path, start=1):        
 #         d = n.data()    
+#         if mask and not fm.match_mask(mask, d['_dtk']): continue
+#         # ecosystem = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
 #         if fm.is_harvest(d['acode']):
-#             result_hwp = fm.compile_product(t, expr, d['acode'], [d['dtk']], d['age'], coeff=False)
-#             hwp_accu_wood += hwp_accu_wood * (1-k_wood)**10 + result_hwp * (proportion_solid_wood) * wood_density * carbon_content / 1000 # Convert kg to ton
-#             hwp_accu_paper += hwp_accu_paper * (1-k_wood)**10 + result_hwp * (1- proportion_solid_wood) * wood_density * carbon_content / 1000 # Convert kg to ton
-#             result += hwp_accu_wood + hwp_accu_paper
-#             # result = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
-#             # ecosystem = fm.inventory(t, 'ecosystem', age=d['_age'], dtype_keys=[d['_dtk']])
-#             # dom = fm.inventory(t, 'DOM', age=d['_age'], dtype_keys=[d['_dtk']])
-#             # print(f'Ecosystem: {ecosystem}')
-#             # print(f'DOM: {dom}')
-#             # print(f'ratio: {(ecosytem-dom)/dom}')
-#             # print('______________________________________________________________')
+#             result_hwp = (fm.compile_product(t, 'totvol', d['acode'], [d['dtk']], d['age'], coeff=False) * wood_density * carbon_content)/1000
+#             hwp_accu_wood += (hwp_accu_wood * (1-k_wood)**10 + result_hwp * (proportion_solid_wood)) 
+#             hwp_accu_paper += (hwp_accu_paper * (1-k_paper)**10 + result_hwp * (1- proportion_solid_wood))  
+#             ecosystem = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
+#             result += hwp_accu_wood + hwp_accu_paper + ecosystem
 #         else:
-#             result = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
-
+#             result += fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']]) 
+#         result += fm.inventory(0, yname, age=d['_age'], dtype_keys=[d['_dtk']])
 #     return result
 
-def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=0.5, mask=None):
+def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=1, mask=None):
     """
     Compile objective function coefficient for total system carbon stock indicators (given ForestModel instance, 
     leaf-to-root-node path, and expression to evaluate).
     """
-    # k_wood = math.log(2) / half_life_solid_wood  # Decay rate for solid wood products (30-year half-life)
-    # k_paper = math.log(2) / half_life_paper  # Decay rate for paper (2-year half-life)
-    k_wood = 0
-    k_paper = 0
+    k_wood = math.log(2) / half_life_solid_wood  # Decay rate for solid wood products (30-year half-life)
+    k_paper = math.log(2) / half_life_paper  # Decay rate for paper (2-year half-life)
+    # k_wood = 0
+    # k_paper = 0
     wood_density = 460
     carbon_content = 0.5
     result = 0.
     hwp_accu_wood = 0.
-    hwp_accu_paper = 0.   
+    hwp_accu_paper = 0.
+    ecosystem = 0.
     for t, n in enumerate(path, start=1):        
         d = n.data()    
-        if mask and not fm.match_mask(mask, d['_dtk']): continue
         if fm.is_harvest(d['acode']):
-            result_hwp = (fm.compile_product(t, expr, d['acode'], [d['dtk']], d['age'], coeff=False) * wood_density * carbon_content)/1000
-            hwp_accu_wood += (hwp_accu_wood * (1-k_wood)**10 + result_hwp * (proportion_solid_wood)) 
-            hwp_accu_paper += (hwp_accu_paper * (1-k_paper)**10 + result_hwp * (1- proportion_solid_wood))  
-            # ecosystem = fm.inventory(t, 'DOM', age=d['_age'], dtype_keys=[d['_dtk']])
-            result += hwp_accu_wood + hwp_accu_paper
-            # result = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
-            # dom = fm.inventory(t, 'DOM', age=d['_age'], dtype_keys=[d['_dtk']])
-            # print(f'Ecosystem: {ecosystem}')
-            # print(f'DOM: {dom}')
-            # print(f'ratio: {(ecosystem-dom)/dom}')
-            # print('______________________________________________________________')
+            result_hwp = fm.compile_product(t, 'totvol', d['acode'], [d['dtk']], d['age'], coeff=False) * wood_density * carbon_content/1000
         else:
-            result += fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
+            result_hwp = 0     
+        hwp_accu_wood  = hwp_accu_wood * (1-k_wood)**10 + result_hwp * proportion_solid_wood
+        hwp_accu_paper = hwp_accu_paper * (1-k_paper)**10 + result_hwp * (1- proportion_solid_wood) 
+        ecosystem = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
+        result = hwp_accu_wood + hwp_accu_paper + ecosystem
+    return result
 
+# This is from wlater for max_st
+# def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=1, mask=None):
+#     """
+#     Compile objective function coefficient for total system carbon stock indicators (given ForestModel instance, 
+#     leaf-to-root-node path, and expression to evaluate).
+#     """
+
+#     hwps_solid_pool = 0.
+#     hwps_paper_pool = 0.
     
-        result += fm.inventory(0, yname, age=d['_age'], dtype_keys=[d['_dtk']])
+#     # Calculate decay rates based on half-lives
+#     k_solid_wood = math.log(2) / half_life_solid_wood  # Decay rate for solid wood products (30-year half-life)
+#     k_paper = math.log(2) / half_life_paper  # Decay rate for paper (2-year half-life)
+    
+#     # Define the allocation distribution
+#     proportion_paper = 1 - proportion_solid_wood
+    
+#     # wood density (Kennedy, 1965)
+#     wood_density = 460
+
+#     # carbon content
+#     carbon_content = 0.5
+    
+#     for t, n in enumerate(path, start=1):
+        
+#         d = n.data()
+#         # node_id = id(n)  # or another unique identifier specific to your application
+#         # print(f"Timestep: {t}, Node ID: {node_id}")
+        
+#         # Track the new HWPs stock
+#         if fm.is_harvest(d['acode']):             
+#             # Calculate new product stock
+#             new_product_carbon = fm.compile_product(t, expr, d['acode'], [d['dtk']], d['age'], coeff=False) * wood_density * carbon_content / 1000  # Convert kg to ton
+#             # print(f'new_product_carbon: {new_product_carbon}')
+#         else:
+#             new_product_carbon = 0.
+
+#         hwps_solid_pool = hwps_solid_pool * (1 - k_solid_wood)**10 + new_product_carbon * proportion_solid_wood
+#         hwps_paper_pool = hwps_paper_pool * (1 - k_paper)**10 + new_product_carbon * proportion_paper
+#         eco_pool = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
+
+#         # Accumlate the total system carbon stock in each timestep
+#         result = eco_pool + hwps_solid_pool + hwps_paper_pool
+
+#         # Print out the results
+#         # print(f"Ecosystem Stock: {eco_pool:.4f} tons")
+#         # print(f"Solid Wood Product Stock: {hwps_solid_pool:.4f} tons, Paper Stock: {hwps_paper_pool:.4f} tons")
+#         # print(f"Total System Carbon Stock (result so far): {result:.4f} tons")
+    
+#     return result
+
+
+# This is from walter for min_em
+# def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=1,  displacement_factor=0, mask=None):
+    
+#     """
+#     Compile objective function coefficient for net system carbon emission indicators 
+#     (given ForestModel instance, leaf-to-root-node path, and expression to evaluate).
+#     """
+
+#     result = 0.
+#     hwps_solid_emission = 0.
+#     hwps_paper_emission = 0.
+#     hwps_solid_pool = 0.
+#     hwps_paper_pool = 0.
+    
+#     # Calculate decay rates based on half-lives
+#     k_solid_wood = math.log(2) / half_life_solid_wood  # Decay rate for solid wood products (30-year half-life)
+#     k_paper = math.log(2) / half_life_paper  # Decay rate for paper (2-year half-life)
+
+#     # k_solid_wood = 0
+#     # k_paper = 0
+    
+#     # Define the allocation distribution
+#     proportion_paper = 1 - proportion_solid_wood
+    
+#     # wood density (Kennedy, 1965)
+#     wood_density = 460
+
+#     # carbon content
+#     carbon_content = 0.5
+    
+#     for t, n in enumerate(path, start=1):
+        
+#         d = n.data()
+#         # node_id = id(n)  # or another unique identifier specific to your application
+#         # print(f"Timestep: {t}, Node ID: {node_id}")
+
+#         # Calculate prodcut emission
+#         hwps_solid_emission = hwps_solid_pool*(1- (1 - k_solid_wood)**10)
+#         hwps_paper_emission = hwps_paper_pool*(1- (1 - k_paper)**10)
+        
+#         # Track the new product stock
+#         if fm.is_harvest(d['acode']):             
+#             # Calculate new product stock
+#             new_product_carbon = fm.compile_product(t, expr, d['acode'], [d['dtk']], d['age'], coeff=False) * wood_density * carbon_content / 1000  # Convert kg to ton
+#             # print(f'new_product_carbon: {new_product_carbon}')
+#         else:
+#             new_product_carbon = 0.
+
+#         # Calculate system emission
+#         if t > 1:
+#             eco_emission = fm.inventory(t-1, yname, age=d['_age'], dtype_keys=[d['_dtk']]) - fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']]) - new_product_carbon
+#         else:
+#             eco_emission = 0.
+        
+#         # Calculate product stock
+#         hwps_solid_pool = hwps_solid_pool * (1 - k_solid_wood)**10 + new_product_carbon * proportion_solid_wood
+#         hwps_paper_pool = hwps_paper_pool * (1 - k_paper)**10 + new_product_carbon * proportion_paper
+       
+#         # Calculate Substitution Effect
+#         substitution_effect = new_product_carbon * displacement_factor  # Emissions avoided by using HWPs
+        
+#         # Accumlate the total system carbon stock in each timestep
+#         result = (eco_emission + hwps_solid_emission - new_product_carbon - substitution_effect)
+
+#         # Print out the results
+#         # print(f"Ecosystem Stock: {eco_pool:.4f} tons")
+#         # print(f"Solid Wood Product Stock: {hwps_solid_pool:.4f} tons, Paper Stock: {hwps_paper_pool:.4f} tons")
+#         # print(f"Total System Carbon Stock (result so far): {result:.4f} tons")
+    
+#     return result
+
+
+def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=1,  displacement_factor=0, mask=None):
+    
+    """
+    Compile objective function coefficient for net system carbon emission indicators 
+    (given ForestModel instance, leaf-to-root-node path, and expression to evaluate).
+    """
+
+    result = 0.
+    hwps_solid_emission = 0.
+    hwps_paper_emission = 0.
+    hwps_solid_pool = 0.
+    hwps_paper_pool = 0.
+    
+    # Calculate decay rates based on half-lives
+    k_solid_wood = math.log(2) / half_life_solid_wood  # Decay rate for solid wood products (30-year half-life)
+    k_paper = math.log(2) / half_life_paper  # Decay rate for paper (2-year half-life)
+
+    # k_solid_wood = 0
+    # k_paper = 0
+    
+    # Define the allocation distribution
+    proportion_paper = 1 - proportion_solid_wood
+    
+    # wood density (Kennedy, 1965)
+    wood_density = 460
+
+    # carbon content
+    carbon_content = 0.5
+    
+    for t, n in enumerate(path, start=1):
+        
+        d = n.data()
+        # node_id = id(n)  # or another unique identifier specific to your application
+        # print(f"Timestep: {t}, Node ID: {node_id}")
+
+        # Calculate prodcut emission
+        hwps_solid_emission = hwps_solid_pool*(1- (1 - k_solid_wood)**10)
+        hwps_paper_emission = hwps_paper_pool*(1- (1 - k_paper)**10)
+        
+        # Track the new product stock
+        if fm.is_harvest(d['acode']):             
+            # Calculate new product stock
+            new_product_carbon = fm.compile_product(t, expr, d['acode'], [d['dtk']], d['age'], coeff=False) * wood_density * carbon_content / 1000  # Convert kg to ton
+            # print(f'new_product_carbon: {new_product_carbon}')
+        else:
+            new_product_carbon = 0.
+
+        # Calculate system emission
+        if t > 1:
+            eco_emission = fm.inventory(t-1, yname, age=d['_age'], dtype_keys=[d['_dtk']]) - fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']]) - new_product_carbon
+            print(eco_emission)
+        else:
+            eco_emission = 0.
+        
+        # Calculate product stock
+        hwps_solid_pool = hwps_solid_pool * (1 - k_solid_wood)**10 + new_product_carbon * proportion_solid_wood
+        hwps_paper_pool = hwps_paper_pool * (1 - k_paper)**10 + new_product_carbon * proportion_paper
+       
+        # Calculate Substitution Effect
+        substitution_effect = new_product_carbon * displacement_factor  # Emissions avoided by using HWPs
+        
+        # Accumlate the total system carbon stock in each timestep
+        result = (eco_emission + hwps_solid_emission - new_product_carbon - substitution_effect)
+
+        # Print out the results
+        # print(f"Ecosystem Stock: {eco_pool:.4f} tons")
+        # print(f"Solid Wood Product Stock: {hwps_solid_pool:.4f} tons, Paper Stock: {hwps_paper_pool:.4f} tons")
+        # print(f"Total System Carbon Stock (result so far): {result:.4f} tons")
+    
     return result
 ##############################
 
@@ -583,7 +634,10 @@ def gen_scenario(fm, name='base', util=0.85, harvest_acode='harvest',
         zexpr = vexpr
     elif obj_mode == 'max_st':
         sense = ws3.opt.SENSE_MAXIMIZE 
-        zexpr = vexpr        
+        zexpr = vexpr 
+    elif obj_mode == 'min_em':
+        sense = ws3.opt.SENSE_MINIMIZE 
+        zexpr = vexpr 
     elif obj_mode == 'min_ha': # minimize harvest area
         sense = ws3.opt.SENSE_MINIMIZE 
         zexpr = '1.'
@@ -595,6 +649,8 @@ def gen_scenario(fm, name='base', util=0.85, harvest_acode='harvest',
         coeff_funcs['z'] = partial(cmp_c_z, expr=zexpr) # define objective function coefficient function for max_hv and min_ha
     elif obj_mode == 'max_st':
         coeff_funcs['z'] = partial(cmp_c_ss, expr=zexpr, yname=cp_name) # define objective function coefficient function for total system carbon stock
+    elif obj_mode == 'min_em':
+        coeff_funcs['z'] = partial(cmp_c_se, expr=zexpr, yname=cp_name) # define objective function coefficient function for total system emission
     else:
         raise ValueError('Invalid obj_mode: %s' % obj_mode)
 
@@ -750,6 +806,9 @@ def run_scenario(fm, obj_mode, scenario_name='base'):
     elif obj_mode == 'max_st':
         df = compile_scenario_maxstock(fm)
         plot_scenario_maxstock(df) 
+    elif obj_mode == 'min_em':
+        df = compile_scenario_maxstock(fm)
+        plot_scenario_maxstock(df)
     else:
         raise ValueError('Invalid obj_mode: %s' % obj_mode) 
     return sch
