@@ -306,7 +306,10 @@ def plot_scenario_maxstock(df):
     # ax[4].set_xlabel('Period')
     # ax[4].set_ylabel('tons of C')
     return fig, ax
-    
+
+
+
+
 ################################################
 # Optimization
 ################################################
@@ -405,6 +408,7 @@ def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, 
     wood_density = 460
     carbon_content = 0.5
     result = 0.
+    sum = 0.
     hwp_accu_wood = 0.
     hwp_accu_paper = 0.
     ecosystem = 0.
@@ -417,7 +421,8 @@ def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, 
         hwp_accu_wood  = hwp_accu_wood * (1-k_wood)**10 + result_hwp * proportion_solid_wood
         hwp_accu_paper = hwp_accu_paper * (1-k_paper)**10 + result_hwp * (1- proportion_solid_wood) 
         ecosystem = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
-        result = hwp_accu_wood + hwp_accu_paper + ecosystem
+        result += hwp_accu_wood + hwp_accu_paper + ecosystem
+    # result
     return result
 
 #######################################
@@ -496,6 +501,7 @@ def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, 
 
 
 
+
 # from Walter modified by me
 # def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=1,  displacement_factor=0, mask=None):
     
@@ -567,6 +573,7 @@ def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, 
     
 #     return result
 
+
 # def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=30000000000000000000000, half_life_paper=2, proportion_solid_wood=1,  displacement_factor=0, mask=None):
     
 #     """
@@ -637,7 +644,32 @@ def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, 
     
 #     return result
 
-
+def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=1, displacement_factor=0, mask=None):
+    """
+    Compile objective function coefficient for total system carbon stock indicators (given ForestModel instance, 
+    leaf-to-root-node path, and expression to evaluate).
+    """
+    k_wood = math.log(2) / half_life_solid_wood  # Decay rate for solid wood products (30-year half-life)
+    k_paper = math.log(2) / half_life_paper  # Decay rate for paper (2-year half-life)
+    # k_wood = 0
+    # k_paper = 0
+    wood_density = 460
+    carbon_content = 0.5
+    result = 0.
+    hwp_accu_wood_emission = 0.
+    hwp_accu_paper_emission = 0.
+    ecosystem = 0.
+    for t, n in enumerate(path, start=1):        
+        d = n.data()    
+        if fm.is_harvest(d['acode']):
+            result_hwp_emission = fm.compile_product(t, 'totvol', d['acode'], [d['dtk']], d['age'], coeff=False) * wood_density * carbon_content * 44/12 /1000
+        else:
+            result_hwp_emission = 0     
+        hwp_accu_wood_emission  = hwp_accu_wood * (1-k_wood)**10 + result_hwp_emission * proportion_solid_wood
+        hwp_accu_paper_emission = hwp_accu_paper * (1-k_paper)**10 + result_hwp_emission * (1- proportion_solid_wood) 
+        net_emissions = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
+        result = hwp_accu_wood_emission + hwp_accu_paper_emission + net_emissions
+    return result
     
 ##############################
 
@@ -699,7 +731,7 @@ def cmp_c_ci(fm, path, yname, mask=None): # product, named actions
 def gen_scenario(fm, name='base', util=0.85, harvest_acode='harvest',
                  cflw_ha={}, cflw_hv={}, 
                  cgen_ha={}, cgen_hv={}, cgen_gs={}, 
-                 tvy_name='totvol', cp_name='ecosystem', obj_mode='max_hv', mask=None):
+                 tvy_name='totvol', cp_name='ecosystem', ce_name='net_emissions', obj_mode='max_hv', mask=None):
     from functools import partial
     import numpy as np
     coeff_funcs = {}
@@ -728,7 +760,7 @@ def gen_scenario(fm, name='base', util=0.85, harvest_acode='harvest',
     elif obj_mode == 'max_st':
         coeff_funcs['z'] = partial(cmp_c_ss, expr=zexpr, yname=cp_name) # define objective function coefficient function for total system carbon stock
     elif obj_mode == 'min_em':
-        coeff_funcs['z'] = partial(cmp_c_se, expr=zexpr, yname=cp_name) # define objective function coefficient function for total system emission
+        coeff_funcs['z'] = partial(cmp_c_se, expr=zexpr, yname=ce_name) # define objective function coefficient function for total system emission
     else:
         raise ValueError('Invalid obj_mode: %s' % obj_mode)
 
@@ -779,6 +811,9 @@ def run_scenario(fm, obj_mode, scenario_name='base'):
         print('running no constraints scenario')
         cgen_hv = {'lb':{1:1}, 'ub':{1:200}}
     elif scenario_name == 'no_cons': 
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_ha = {'lb':{1:0}, 'ub':{1:0}}
         # no_cons scenario : 
         print('running no constraints scenario')        
     # Golden Bear scenarios
