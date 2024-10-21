@@ -308,6 +308,59 @@ def plot_scenario_maxstock(df):
     return fig, ax
 
 
+def compile_scenario_minemission(fm):
+    oha = [fm.compile_product(period, '1.', acode='harvest') for period in fm.periods]
+    ohv = [fm.compile_product(period, 'totvol * 0.85', acode='harvest') for period in fm.periods]
+    ogs = [fm.inventory(period, 'totvol') for period in fm.periods]
+    ocp = [fm.inventory(period, 'ecosystem') for period in fm.periods]
+    ocf = [fm.inventory(period, 'net_emissions') for period in fm.periods]
+    data = {'period':fm.periods, 
+            'oha':oha, 
+            'ohv':ohv, 
+            'ogs':ogs,
+            'ocp':ocp,
+            'ocf':ocf}
+    df = pd.DataFrame(data)
+    return df
+
+
+def plot_scenario_minemission(df):
+    fig, ax = plt.subplots(1, 5, figsize=(20, 5))
+    # Plot and label the first subplot for harvested area
+    ax[0].bar(df.period, df.oha)
+    ax[0].set_ylim(0, None)
+    ax[0].set_title('Harvested area')
+    ax[0].set_xlabel('Period')
+    ax[0].set_ylabel('Area (ha)')
+    
+    # Plot and label the second subplot for harvested volume
+    ax[1].bar(df.period, df.ohv)
+    ax[1].set_ylim(0, None)
+    ax[1].set_title('Harvested volume')
+    ax[1].set_xlabel('Period')
+    ax[1].set_ylabel('Volume (m3)')
+
+    # Plot and label the third subplot for growing stock
+    ax[2].bar(df.period, df.ogs)
+    ax[2].set_ylim(0, None)
+    ax[2].set_xlabel('Period')
+    ax[2].set_title('Growing Stock')
+    ax[2].set_ylabel('Volume (m3)')
+
+    # Plot and label the fourth subplot for ecosystem carbon stock
+    ax[3].bar(df.period, df.ocp)
+    ax[3].set_ylim(0, None)
+    ax[3].set_title('Ecosystem C stock')
+    ax[3].set_xlabel('Period')
+    ax[3].set_ylabel('Stock (ton)')
+
+    # # Plot and label the fifth subplot for total carbon emission
+    ax[4].bar(df.period, df.ocf)
+    ax[4].set_ylim(None, None)
+    ax[4].set_title('Net Carbon Emission')
+    ax[4].set_xlabel('Period')
+    ax[4].set_ylabel('tons of CO2')
+    return fig, ax
 
 
 
@@ -703,7 +756,146 @@ def gen_scenario(fm, name='base', util=0.85, harvest_acode='harvest',
 
 
 
-def run_scenario(fm, obj_mode, scenario_name='base'):
+# This for using ws3 before pulp implementation
+# def run_scenario(fm, obj_mode, scenario_name='base'):
+#     import gurobipy as grb
+#     initial_inv_equit = 869737. #ha
+#     initial_gs_equit = 106582957.  #m3   
+#     initial_inv_red = 390738.
+#     initial_gs_red =18018809.
+#     initial_inv_gold = 191273.
+#     initial_gs_gold = 7017249.
+#     aac_equity =  18255528. # AAC per year * 10
+#     aac_red =  1072860. # AAC per year * 10
+#     aac_gold =  766066. # AAC per year * 10
+#     cflw_ha = {}
+#     cflw_hv = {}
+#     cgen_ha = {}
+#     cgen_hv = {}
+#     cgen_gs = {}
+
+#     if scenario_name == 'test': 
+#         # no_cons scenario : 
+#         print('running no constraints scenario')
+#         cgen_hv = {'lb':{1:1}, 'ub':{1:200}}
+#     elif scenario_name == 'no_cons': 
+#         # no_cons scenario : 
+#         print('running no constraints scenario')
+#         # cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+#         # cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+#         # cgen_ha = {'lb':{1:0}, 'ub':{1:0}}
+#     # Golden Bear scenarios
+#     elif scenario_name == 'bau_gldbr': 
+#         # Business as usual scenario for Golden Bear mining site: 
+#         print('running business as usual scenario for the Golden Bear mine site')
+#         cgen_hv = {'lb':{1:aac_gold}, 'ub':{1:aac_gold}}
+#         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+#         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+
+#     # Red Chris Scenarios
+#     elif scenario_name == 'bau_redchrs': 
+#         # Business as usual scenario for the Red Chris mining site: 
+#         print('running business as usual scenario for the Red Chris mining site,')
+#         cgen_hv = {'lb':{1:aac_red}, 'ub':{1:aac_red}} 
+#         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+#         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+
+#     elif scenario_name == 'redchrs_gs_hv_ha_100': 
+#         # BAU scenario, plus harvest area general constraints 100%
+#         print('running alternative scenario with harvest area constraints (100%)')
+#         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+#         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+#         cgen_ha = {'lb':{1:0}, 'ub':{1:initial_inv_red*1}}
+#         cgen_hv = {'lb':{1:0.9*aac_red}, 'ub':{1:aac_red}} # at least 90% of aac
+#         cgen_gs = {'lb':{10:initial_gs_red}, 'ub':{10:initial_gs_red*10}} #Not less than 90% of initial growing stock at the end
+
+#     elif scenario_name == 'redchrs_gs_hv_ha_90': 
+#         # BAU scenario, plus harvest area general constraints 100%
+#         print('running alternative scenario with harvest area constraints (90%)')
+#         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+#         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+#         cgen_ha = {'lb':{1:0}, 'ub':{1:initial_inv_red*0.9}}
+#         cgen_hv = {'lb':{1:0.9*aac_red}, 'ub':{1:aac_red}} # at least 90% of aac
+#         cgen_gs = {'lb':{10:initial_gs_red}, 'ub':{10:initial_gs_red*10}} #Not less than 90% of initial growing stock at the end
+
+    
+#     # Equity Silver scenarios
+#     elif scenario_name == 'bau_eqtslvr': 
+#         # Business as usual scenario for the Equity Silver mining site: 
+#         print('running business as usual scenario for the Equity Silver mining site')
+#         cgen_hv = {'lb':{1:0.7*aac_equity}, 'ub':{1:0.7*aac_equity}} 
+#         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+#         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        
+    
+
+    
+#     elif scenario_name == 'base-cgen_ha_90%': 
+#         # Base scenario, plus harvest area general constraints 90%
+#         print('running base scenario plus harvest area constraints')
+#         cgen_ha = {'lb':{1:initial_inv*0.1}, 'ub':{1:initial_inv*0.9}}   
+#     elif scenario_name == 'base-cgen_ha_80%': 
+#         # Base scenario, plus harvest area general constraints 80%
+#         print('running base scenario plus harvest area constraints')
+#         cgen_ha = {'lb':{1:initial_inv*0.1}, 'ub':{1:initial_inv*0.8}}
+#     elif scenario_name == 'base-cgen_ha_0%': 
+#         # Base scenario, plus harvest area general constraints 70%
+#         print('running base scenario plus harvest area constraints 0%')
+#         cgen_ha = {'lb':{1:initial_inv*1}, 'ub':{1:initial_inv*1}} 
+#     elif scenario_name == 'base-cgen_hv': 
+#         # Base scenario, plus harvest volume general constraints
+#         print('running base scenario plus harvest volume constraints')
+#         cgen_hv = {'lb':{1:100000.}, 'ub':{1:100100.}}    
+#     elif scenario_name == 'base-cgen_gs': 
+#         # Base scenario, plus growing stock general constraints
+#         print('running base scenario plus growing stock constraints')
+#         cgen_gs = {'lb':{10:10000000.}, 'ub':{10:10000100.}}
+#     elif scenario_name == 'base-cgen_gs_ha_100': 
+#         # Base scenario, plus growing stock general constraints
+#         print('running maxmizie harvest scenario scenario plus growing stock constraints plus harvest area constraints 100%')
+#         cgen_gs = {'lb':{x:initial_gs*0.9 for x in range(1,11)}, 'ub':{x:initial_gs*100 for x in range(1,11)}} #Not less than 90% of initial growing stock
+#         # cgen_hv = {'lb':{20:AAC-1}, 'ub':{20:AAC}} #Achieve the Annual Allowable Cut
+#         cgen_ha = {'lb':{1:initial_inv*0.1}, 'ub':{1:initial_inv*1}} 
+    
+#     else:
+#         assert False # bad scenario name
+#     p = gen_scenario(fm=fm, 
+#                      name=scenario_name, 
+#                      cflw_ha=cflw_ha, 
+#                      cflw_hv=cflw_hv,
+#                      cgen_ha=cgen_ha,
+#                      cgen_hv=cgen_hv,
+#                      cgen_gs=cgen_gs,
+#                     obj_mode=obj_mode)
+#     fm.reset()
+#     m = p.solve()
+#     if m.status != grb.GRB.OPTIMAL:
+#         print('Model not optimal.')
+#         sys.exit()
+#     sch = fm.compile_schedule(p)
+#     fm.apply_schedule(sch, 
+#                       force_integral_area=False, 
+#                       override_operability=False,
+#                       fuzzy_age=False,
+#                       recourse_enabled=False,
+#                       verbose=False,
+#                       compile_c_ycomps=True)
+    
+#     if obj_mode == 'max_hv' or obj_mode == 'min_ha':
+#         df = compile_scenario(fm)
+#         plot_scenario(df)
+#     elif obj_mode == 'max_st':
+#         df = compile_scenario_maxstock(fm)
+#         plot_scenario_maxstock(df) 
+#     elif obj_mode == 'min_em':
+#         df = compile_scenario_minemission(fm)
+#         plot_scenario_minemission(df)
+#     else:
+#         raise ValueError('Invalid obj_mode: %s' % obj_mode) 
+#     return sch
+
+
+def run_scenario(fm, obj_mode, scenario_name='base', solver=ws3.opt.SOLVER_PULP):
     import gurobipy as grb
     initial_inv_equit = 869737. #ha
     initial_gs_equit = 106582957.  #m3   
@@ -726,7 +918,10 @@ def run_scenario(fm, obj_mode, scenario_name='base'):
         cgen_hv = {'lb':{1:1}, 'ub':{1:200}}
     elif scenario_name == 'no_cons': 
         # no_cons scenario : 
-        print('running no constraints scenario')  
+        print('running no constraints scenario')
+        # cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        # cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        # cgen_ha = {'lb':{1:1}, 'ub':{1:1}}
     # Golden Bear scenarios
     elif scenario_name == 'bau_gldbr': 
         # Business as usual scenario for Golden Bear mining site: 
@@ -799,9 +994,9 @@ def run_scenario(fm, obj_mode, scenario_name='base'):
         cgen_gs = {'lb':{x:initial_gs*0.9 for x in range(1,11)}, 'ub':{x:initial_gs*100 for x in range(1,11)}} #Not less than 90% of initial growing stock
         # cgen_hv = {'lb':{20:AAC-1}, 'ub':{20:AAC}} #Achieve the Annual Allowable Cut
         cgen_ha = {'lb':{1:initial_inv*0.1}, 'ub':{1:initial_inv*1}} 
-    
     else:
         assert False # bad scenario name
+    
     p = gen_scenario(fm=fm, 
                      name=scenario_name, 
                      cflw_ha=cflw_ha, 
@@ -810,19 +1005,23 @@ def run_scenario(fm, obj_mode, scenario_name='base'):
                      cgen_hv=cgen_hv,
                      cgen_gs=cgen_gs,
                     obj_mode=obj_mode)
+    p.solver(solver)
+    
     fm.reset()
-    m = p.solve()
-    if m.status != grb.GRB.OPTIMAL:
+    p.solve()
+    
+    if p.status() != ws3.opt.STATUS_OPTIMAL:
         print('Model not optimal.')
-        sys.exit()
-    sch = fm.compile_schedule(p)
-    fm.apply_schedule(sch, 
-                      force_integral_area=False, 
-                      override_operability=False,
-                      fuzzy_age=False,
-                      recourse_enabled=False,
-                      verbose=False,
-                      compile_c_ycomps=True)
+        df = None   
+    else:
+        sch = fm.compile_schedule(p)
+        fm.apply_schedule(sch, 
+                        force_integral_area=False, 
+                        override_operability=False,
+                        fuzzy_age=False,
+                        recourse_enabled=False,
+                        verbose=False,
+                        compile_c_ycomps=True)
     
     if obj_mode == 'max_hv' or obj_mode == 'min_ha':
         df = compile_scenario(fm)
@@ -831,11 +1030,13 @@ def run_scenario(fm, obj_mode, scenario_name='base'):
         df = compile_scenario_maxstock(fm)
         plot_scenario_maxstock(df) 
     elif obj_mode == 'min_em':
-        df = compile_scenario_maxstock(fm)
-        plot_scenario_maxstock(df)
+        df = compile_scenario_minemission(fm)
+        plot_scenario_minemission(df)
     else:
         raise ValueError('Invalid obj_mode: %s' % obj_mode) 
     return sch
+
+
 ##############################################################
 # Implement a simple function to run CBM from ws3 export data
 ##############################################################
@@ -988,7 +1189,9 @@ def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_ste
     co2_concrete_manu_factor = 298.
     concrete_density = 2.40 #ton/m3
     co2_concrete_landfill_factor = 0.00517 * concrete_density
-    sch_alt_scenario = run_scenario(fm, obj_mode, scenario_name)
+    sch_alt_scenario = run_scenario(fm, obj_mode, scenario_name, solver)
+    # sch_alt_scenario = run_scenario(fm, obj_mode, scenario_name)
+
     df = compile_scenario(fm)
     plot_scenario(df)
     df_carbon_stock = hwp_carbon_stock(fm, products, product_coefficients, product_percentages, decay_rates, hwp_pool_effect_value)
