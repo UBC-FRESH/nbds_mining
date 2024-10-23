@@ -367,6 +367,7 @@ def plot_scenario_minemission(df):
 ################################################
 # Optimization
 ################################################
+
 def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=1, mask=None):
     """
     Compile objective function coefficient for total system carbon stock indicators (given ForestModel instance, 
@@ -397,9 +398,7 @@ def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, 
     return result
 
 
-
-
-#######################################
+#Considering emissions for the newxt period
 # def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=1, half_life_paper=2, proportion_solid_wood=1, displacement_factor=2 , mask=None):
 #     """
 #     Compile objective function coefficient for total system carbon stock indicators (given ForestModel instance, 
@@ -452,8 +451,8 @@ def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, 
 
 #     return result
 
-# Considering emissions from first period
-def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=1, half_life_paper=2, proportion_solid_wood=1, displacement_factor=2 , mask=None):
+# Considering emissions from the first period
+def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=0.8, displacement_factor=2 , mask=None):
     """
     Compile objective function coefficient for total system carbon stock indicators (given ForestModel instance, 
     leaf-to-root-node path, and expression to evaluate).
@@ -471,9 +470,9 @@ def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=1, half_life_paper=2, p
     hwp_accu_wood = 0.
     hwp_accu_paper = 0.
     ecosystem = 0.
-    clt_percentage = 1.24
+    clt_percentage = 0.5
     credibility = 1.
-    clt_conversion_rate = 1.
+    clt_conversion_rate = 1.24
     co2_concrete_manu_accu = 0.
     co2_concrete_landfill = 0.
     co2_concrete_manu_factor = 298. #kg/m3
@@ -502,7 +501,6 @@ def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=1, half_life_paper=2, p
 
     return result
 
-##############################
 
 def cmp_c_z(fm, path, expr):
     """
@@ -1053,8 +1051,8 @@ def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_ste
     co2_concrete_manu_factor = 298.
     concrete_density = 2400 #kg/m3
     co2_concrete_landfill_factor = 0.00517 * concrete_density
-    # sch_alt_scenario = run_scenario(fm, obj_mode, scenario_name, solver)
-    sch_alt_scenario = run_scenario(fm, obj_mode, scenario_name)
+    sch_alt_scenario = run_scenario(fm, obj_mode, scenario_name, solver='gurobi')
+    # sch_alt_scenario = run_scenario(fm, obj_mode, scenario_name) #This uses pulp
 
     df = compile_scenario(fm)
     plot_scenario(df)
