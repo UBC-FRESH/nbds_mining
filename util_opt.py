@@ -204,7 +204,7 @@ def emission_concrete_landfill(fm, product_coefficients, clt_percentage, credibi
             co2_concrete_landfill = 0
         else:
             concrete_volume = calculate_concrete_volume(fm, i, product_coefficients, clt_percentage, credibility, clt_conversion_rate)
-            co2_concrete_landfill = concrete_volume * co2_concrete_landfill_factor * 0.1                         
+            co2_concrete_landfill = concrete_volume * co2_concrete_landfill_factor * 0.1  / 1000                       
         df_emission_concrete_landfill['period'].append(period_value)
         df_emission_concrete_landfill['co2_concrete_landfill'].append(co2_concrete_landfill)    
     # Create a DataFrame from the dictionary
@@ -376,7 +376,7 @@ def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, 
     k_paper = math.log(2) / half_life_paper  # Decay rate for paper (2-year half-life)
     # k_wood = 0
     # k_paper = 0
-    wood_density = 460
+    wood_density = 460 #kg/m3
     carbon_content = 0.5
     result = 0.
     sum = 0.
@@ -396,248 +396,112 @@ def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, 
 
     return result
 
+
+
+
 #######################################
-# This is from walter for min_em
-# def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=1,  displacement_factor=0, mask=None):
-    
+# def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=1, half_life_paper=2, proportion_solid_wood=1, displacement_factor=2 , mask=None):
 #     """
-#     Compile objective function coefficient for net system carbon emission indicators 
-#     (given ForestModel instance, leaf-to-root-node path, and expression to evaluate).
+#     Compile objective function coefficient for total system carbon stock indicators (given ForestModel instance, 
+#     leaf-to-root-node path, and expression to evaluate).
 #     """
-
-#     result = 0.
-#     hwps_solid_emission = 0.
-#     hwps_paper_emission = 0.
-#     hwps_solid_pool = 0.
-#     hwps_paper_pool = 0.
-    
-#     # Calculate decay rates based on half-lives
-#     k_solid_wood = math.log(2) / half_life_solid_wood  # Decay rate for solid wood products (30-year half-life)
+#     k_wood = math.log(2) / half_life_solid_wood  # Decay rate for solid wood products (30-year half-life)
 #     k_paper = math.log(2) / half_life_paper  # Decay rate for paper (2-year half-life)
-
-#     # k_solid_wood = 0
-#     # k_paper = 0
+#     # k_wood = 0.
+#     # k_paper = 0.
+#     wood_density = 460 #kg/m3
+#     carbon_content = 0.5 # percent
+#     result = 0.
+#     hwp_wood_emission = 0.
+#     hwp_paper_emission = 0.
+#     hwp_accu_wood = 0.
+#     hwp_accu_wood = 0.
+#     hwp_accu_paper = 0.
+#     ecosystem = 0.
+#     clt_percentage = 1.24
+#     credibility = 1.
+#     clt_conversion_rate = 1.
+#     co2_concrete_manu_accu = 0.
+#     co2_concrete_landfill = 0.
+#     co2_concrete_manu_factor = 298. #kg/m3
+#     concrete_density = 2400 #kg/m3
+#     co2_concrete_landfill_factor = 0.00517 * concrete_density
+#     co2_concrete_landfill_accu = 0.
     
-#     # Define the allocation distribution
-#     proportion_paper = 1 - proportion_solid_wood
-    
-#     # wood density (Kennedy, 1965)
-#     wood_density = 460
+#     for t, n in enumerate(path, start=1):        
+#         d = n.data()     
+#         if fm.is_harvest(d['acode']):
+#             result_hwp = fm.compile_product(t, 'totvol', d['acode'], [d['dtk']], d['age'], coeff=False) * wood_density * carbon_content/1000. 
+#             concrete_volume = fm.compile_product(t, 'totvol', d['acode'], [d['dtk']], d['age'], coeff=False) * proportion_solid_wood * clt_percentage * credibility / clt_conversion_rate 
 
-#     # carbon content
-#     carbon_content = 0.5
-    
-#     for t, n in enumerate(path, start=1):
-        
-#         d = n.data()
-#         # node_id = id(n)  # or another unique identifier specific to your application
-#         # print(f"Timestep: {t}, Node ID: {node_id}")
-
-#         # Calculate prodcut emission
-#         hwps_solid_emission = hwps_solid_pool*(1- (1 - k_solid_wood)**10)
-#         hwps_paper_emission = hwps_paper_pool*(1- (1 - k_paper)**10)
-        
-#         # Track the new product stock
-#         if fm.is_harvest(d['acode']):             
-#             # Calculate new product stock
-#             new_product_carbon = fm.compile_product(t, expr, d['acode'], [d['dtk']], d['age'], coeff=False) * wood_density * carbon_content / 1000  # Convert kg to ton
-#             # print(f'new_product_carbon: {new_product_carbon}')
 #         else:
-#             new_product_carbon = 0.
-
-#         # Calculate system emission
-#         if t > 1:
-#             eco_emission = fm.inventory(t-1, yname, age=d['_age'], dtype_keys=[d['_dtk']]) - fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']]) - new_product_carbon
-#         else:
-#             eco_emission = 0.
+#             result_hwp = 0.  
+#             concrete_volume = 0.
         
-#         # Calculate product stock
-#         hwps_solid_pool = hwps_solid_pool * (1 - k_solid_wood)**10 + new_product_carbon * proportion_solid_wood
-#         hwps_paper_pool = hwps_paper_pool * (1 - k_paper)**10 + new_product_carbon * proportion_paper
-       
-#         # Calculate Substitution Effect
-#         substitution_effect = new_product_carbon * displacement_factor  # Emissions avoided by using HWPs
-        
-#         # Accumlate the total system carbon stock in each timestep
-#         result = (eco_emission + hwps_solid_emission - new_product_carbon - substitution_effect)
+#         hwp_accu_wood  = hwp_accu_wood * (1-k_wood)**10 
+#         hwp_accu_paper = hwp_accu_paper * (1-k_paper)**10 
+#         hwp_wood_emission  =  (hwp_accu_wood * (1- (1-k_wood)**10) * wood_density * carbon_content * 44/12) /1000.
+#         hwp_paper_emission =  (hwp_accu_paper * (1- (1-k_paper)**10) * wood_density * carbon_content * 44/12 ) /1000.
+#         hwp_accu_wood  = hwp_accu_wood + result_hwp * proportion_solid_wood
+#         hwp_accu_paper = hwp_accu_paper + result_hwp * (1- proportion_solid_wood) 
+#         net_emissions = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
+#         co2_concrete_manu_accu += concrete_volume * co2_concrete_manu_factor / 1000.
+#         co2_concrete_landfill_accu += concrete_volume * co2_concrete_landfill_factor / 1000.
+#         result += hwp_wood_emission + hwp_paper_emission + net_emissions - co2_concrete_manu_accu - co2_concrete_landfill_accu
+#         # result += hwp_wood_emission + hwp_paper_emission + net_emissions 
 
-#         # Print out the results
-#         # print(f"Ecosystem Stock: {eco_pool:.4f} tons")
-#         # print(f"Solid Wood Product Stock: {hwps_solid_pool:.4f} tons, Paper Stock: {hwps_paper_pool:.4f} tons")
-#         # print(f"Total System Carbon Stock (result so far): {result:.4f} tons")
-    
 #     return result
 
-
-# from Walter modified by me
-# def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=1,  displacement_factor=0, mask=None):
-    
-#     """
-#     Compile objective function coefficient for net system carbon emission indicators 
-#     (given ForestModel instance, leaf-to-root-node path, and expression to evaluate).
-#     """
-
-#     result = 0.
-#     hwps_solid_emission = 0.
-#     hwps_paper_emission = 0.
-#     hwps_solid_pool = 0.
-#     hwps_paper_pool = 0.
-    
-#     # Calculate decay rates based on half-lives
-#     k_solid_wood = math.log(2) / half_life_solid_wood  # Decay rate for solid wood products (30-year half-life)
-#     k_paper = math.log(2) / half_life_paper  # Decay rate for paper (2-year half-life)
-
-#     # k_solid_wood = 0
-#     # k_paper = 0
-    
-#     # Define the allocation distribution
-#     proportion_paper = 1 - proportion_solid_wood
-    
-#     # wood density (Kennedy, 1965)
-#     wood_density = 460
-
-#     # carbon content
-#     carbon_content = 0.5
-    
-#     for t, n in enumerate(path, start=1):
-        
-#         d = n.data()
-#         # node_id = id(n)  # or another unique identifier specific to your application
-#         # print(f"Timestep: {t}, Node ID: {node_id}")
-
-#         # Calculate prodcut emission
-#         hwps_solid_emission = hwps_solid_pool*(1- (1 - k_solid_wood)**10)
-#         hwps_paper_emission = hwps_paper_pool*(1- (1 - k_paper)**10)
-        
-#         # Track the new product stock
-#         if fm.is_harvest(d['acode']):             
-#             # Calculate new product stock
-#             new_product_carbon = fm.compile_product(t, expr, d['acode'], [d['dtk']], d['age'], coeff=False) * wood_density * carbon_content / 1000  # Convert kg to ton
-#             # print(f'new_product_carbon: {new_product_carbon}')
-#         else:
-#             new_product_carbon = 0.
-
-#         # Calculate system emission
-#         if t > 1:
-#             eco_emission = fm.inventory(t-1, yname, age=d['_age'], dtype_keys=[d['_dtk']]) - fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']]) - new_product_carbon
-#         else:
-#             eco_emission = 0.
-        
-#         # Calculate product stock
-#         hwps_solid_pool = hwps_solid_pool * (1 - k_solid_wood)**10 + new_product_carbon * proportion_solid_wood
-#         hwps_paper_pool = hwps_paper_pool * (1 - k_paper)**10 + new_product_carbon * proportion_paper
-       
-#         # Calculate Substitution Effect
-#         substitution_effect = new_product_carbon * displacement_factor  # Emissions avoided by using HWPs
-        
-#         # Accumlate the total system carbon stock in each timestep
-#         result = (eco_emission + hwps_solid_emission + hwps_paper_pool- new_product_carbon - substitution_effect)
-
-#         # Print out the results
-#         # print(f"Ecosystem Stock: {eco_pool:.4f} tons")
-#         # print(f"Solid Wood Product Stock: {hwps_solid_pool:.4f} tons, Paper Stock: {hwps_paper_pool:.4f} tons")
-#         # print(f"Total System Carbon Stock (result so far): {result:.4f} tons")
-    
-#     return result
-
-
-# def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=30000000000000000000000, half_life_paper=2, proportion_solid_wood=1,  displacement_factor=0, mask=None):
-    
-#     """
-#     Compile objective function coefficient for net system carbon emission indicators 
-#     (given ForestModel instance, leaf-to-root-node path, and expression to evaluate).
-#     """
-
-#     result = 0.
-#     hwps_solid_emission = 0.
-#     hwps_paper_emission = 0.
-#     hwps_solid_pool = 0.
-#     hwps_paper_pool = 0.
-    
-#     # Calculate decay rates based on half-lives
-#     k_solid_wood = math.log(2) / half_life_solid_wood  # Decay rate for solid wood products (30-year half-life)
-#     k_paper = math.log(2) / half_life_paper  # Decay rate for paper (2-year half-life)
-    
-#     # Define the allocation distribution
-#     proportion_paper = 1 - proportion_solid_wood
-    
-#     # wood density (Kennedy, 1965)
-#     wood_density = 460 # kg/m^3
-
-#     # carbon content
-#     carbon_content = 0.5
-    
-#     for t, n in enumerate(path, start=1):
-#         d = n.data()
-#         # node_id = id(n)  # or another unique identifier specific to your application
-#         # print(f"Timestep: {t}, Node ID: {node_id}")
-
-#         # Calculate prodcut emission
-#         # hwps_solid_emission = hwps_solid_pool*(1- (1 - k_solid_wood)**10)
-#         # hwps_paper_emission = hwps_paper_pool*(1- (1 - k_paper)**10)
-#         # hwps_sum_emission = hwps_solid_emission + hwps_paper_emission
-        
-#         # Track the new product stock
-#         # if fm.is_harvest(d['acode']):             
-#         #     # Calculate new product stock
-#         #     new_product_carbon = fm.compile_product(t, expr, d['acode'], [d['dtk']], d['age'], coeff=False) * wood_density * carbon_content / 1000  # Convert kg to ton
-#         #     # print(f'new_product_carbon: {new_product_carbon}')
-#         # else:
-#         #     new_product_carbon = 0.
-
-#         # Calculate system emission
-#         if t > 1:
-#             eco_emission = fm.inventory(t-1, yname, age=d['_age'], dtype_keys=[d['_dtk']]) - fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])  #- new_product_carbon
-#         else:
-#             eco_emission = 0.
-        
-#         # Calculate product stock
-#         # hwps_solid_pool = hwps_solid_pool * (1 - k_solid_wood)**10 + new_product_carbon * proportion_solid_wood
-#         # hwps_paper_pool = hwps_paper_pool * (1 - k_paper)**10 + new_product_carbon * proportion_paper
-       
-#         # Calculate Substitution Effect
-#         # substitution_effect = new_product_carbon * displacement_factor  # Emissions avoided by using HWPs
-        
-#         # Accumlate the total system carbon stock in each timestep
-#         result += eco_emission
-        
-#         # result = total_emission
-
-
-#         # Print out the results
-#         # print(f"Ecosystem Stock: {eco_pool:.4f} tons")
-#         # print(f"Solid Wood Product Stock: {hwps_solid_pool:.4f} tons, Paper Stock: {hwps_paper_pool:.4f} tons")
-#         # print(f"Total System Carbon Stock (result so far): {result:.4f} tons")
-    
-#     return result
-
-def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=1, displacement_factor=0, mask=None):
+# Considering emissions from first period
+def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=1, half_life_paper=2, proportion_solid_wood=1, displacement_factor=2 , mask=None):
     """
     Compile objective function coefficient for total system carbon stock indicators (given ForestModel instance, 
     leaf-to-root-node path, and expression to evaluate).
     """
     k_wood = math.log(2) / half_life_solid_wood  # Decay rate for solid wood products (30-year half-life)
     k_paper = math.log(2) / half_life_paper  # Decay rate for paper (2-year half-life)
-    # k_wood = 0
-    # k_paper = 0
-    wood_density = 460
-    carbon_content = 0.5
+    # k_wood = 0.
+    # k_paper = 0.
+    wood_density = 460 #kg/m3
+    carbon_content = 0.5 # percent
     result = 0.
-    hwp_accu_wood_emission = 0.
-    hwp_accu_paper_emission = 0.
+    hwp_wood_emission = 0.
+    hwp_paper_emission = 0.
+    hwp_accu_wood = 0.
+    hwp_accu_wood = 0.
+    hwp_accu_paper = 0.
     ecosystem = 0.
-    for t, n in enumerate(path, start=1):        
-        d = n.data()    
-        if fm.is_harvest(d['acode']):
-            result_hwp_emission = fm.compile_product(t, 'totvol', d['acode'], [d['dtk']], d['age'], coeff=False) * wood_density * carbon_content * 44/12 /1000
-        else:
-            result_hwp_emission = 0     
-        hwp_accu_wood_emission  = hwp_accu_wood_emission *(1- (1-k_wood)**10) + result_hwp_emission * proportion_solid_wood
-        hwp_accu_paper_emission = hwp_accu_paper_emission *(1- (1-k_paper)**10) + result_hwp_emission * (1- proportion_solid_wood) 
-        net_emissions = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
-        result += hwp_accu_wood_emission + hwp_accu_paper_emission + net_emissions
-    return result
+    clt_percentage = 1.24
+    credibility = 1.
+    clt_conversion_rate = 1.
+    co2_concrete_manu_accu = 0.
+    co2_concrete_landfill = 0.
+    co2_concrete_manu_factor = 298. #kg/m3
+    concrete_density = 2400 #kg/m3
+    co2_concrete_landfill_factor = 0.00517 * concrete_density
+    co2_concrete_landfill_accu = 0.
     
+    for t, n in enumerate(path, start=1):        
+        d = n.data()     
+        if fm.is_harvest(d['acode']):
+            result_hwp = fm.compile_product(t, 'totvol', d['acode'], [d['dtk']], d['age'], coeff=False) * wood_density * carbon_content/1000. 
+            concrete_volume = fm.compile_product(t, 'totvol', d['acode'], [d['dtk']], d['age'], coeff=False) * proportion_solid_wood * clt_percentage * credibility / clt_conversion_rate 
+
+        else:
+            result_hwp = 0.  
+            concrete_volume = 0.
+        hwp_accu_wood  = hwp_accu_wood * (1-k_wood)**10 + result_hwp * proportion_solid_wood
+        hwp_accu_paper = hwp_accu_paper * (1-k_paper)**10 + result_hwp * (1- proportion_solid_wood) 
+        hwp_wood_emission  =  (hwp_accu_wood * (1- (1-k_wood)**10) * wood_density * carbon_content * 44/12) /1000.
+        hwp_paper_emission =  (hwp_accu_paper * (1- (1-k_paper)**10) * wood_density * carbon_content * 44/12 ) /1000.
+        net_emissions = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
+        co2_concrete_manu_accu += concrete_volume * co2_concrete_manu_factor / 1000.
+        co2_concrete_landfill_accu += concrete_volume * co2_concrete_landfill_factor / 1000.
+        result += hwp_wood_emission + hwp_paper_emission + net_emissions - co2_concrete_manu_accu - co2_concrete_landfill_accu
+        # result += hwp_wood_emission + hwp_paper_emission + net_emissions 
+
+    return result
+
 ##############################
 
 def cmp_c_z(fm, path, expr):
@@ -921,7 +785,7 @@ def run_scenario(fm, obj_mode, scenario_name='base', solver=ws3.opt.SOLVER_PULP)
         print('running no constraints scenario')
         # cflw_ha = ({p:0.05 for p in fm.periods}, 1)
         # cflw_hv = ({p:0.05 for p in fm.periods}, 1)
-        # cgen_ha = {'lb':{1:1}, 'ub':{1:1}}
+        # cgen_ha = {'lb':{1:0}, 'ub':{1:0}}
     # Golden Bear scenarios
     elif scenario_name == 'bau_gldbr': 
         # Business as usual scenario for Golden Bear mining site: 
@@ -1161,8 +1025,8 @@ def run_cbm(df_carbon_stock, df_carbon_emission, df_carbon_emission_immed, df_em
     df_carbon_emission =  df_carbon_emission.groupby('period').sum()
     df_carbon_emission_immed =  df_carbon_emission_immed.groupby('period').sum()
     
-    df_emission_concrete_manu = -1 * df_emission_concrete_manu.groupby('period').sum()
-    df_emission_concrete_landfill = -1 * df_emission_concrete_landfill.groupby('period').sum()
+    df_emission_concrete_manu =  -1 * df_emission_concrete_manu.groupby('period').sum()
+    df_emission_concrete_landfill =  -1 * df_emission_concrete_landfill.groupby('period').sum()
     annual_net_emission['HWP'] =  (1 - release_immediately_value) * df_carbon_emission['co2_emission'] 
     annual_net_emission['Carbon release immediately'] = release_immediately_value * df_carbon_emission_immed['co2_emission_immed']
     annual_net_emission['Concrete_manufacturing'] = df_emission_concrete_manu['co2_concrete_manu']
@@ -1187,10 +1051,10 @@ def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_ste
     products = ['plumber', 'ppaper']
     clt_conversion_rate = 1.
     co2_concrete_manu_factor = 298.
-    concrete_density = 2.40 #ton/m3
+    concrete_density = 2400 #kg/m3
     co2_concrete_landfill_factor = 0.00517 * concrete_density
-    sch_alt_scenario = run_scenario(fm, obj_mode, scenario_name, solver)
-    # sch_alt_scenario = run_scenario(fm, obj_mode, scenario_name)
+    # sch_alt_scenario = run_scenario(fm, obj_mode, scenario_name, solver)
+    sch_alt_scenario = run_scenario(fm, obj_mode, scenario_name)
 
     df = compile_scenario(fm)
     plot_scenario(df)
@@ -1631,6 +1495,20 @@ def compare_ws3_cbm_both(fm, cbm_output, disturbance_type_mapping, biomass_pools
                        'gross_growth': 44/12 * -1* fi[GrossGrowth_pools].sum(axis=1),
                        'net_emissions': 44/12 * ( fi[ecosystem_decay_emissions_pools].sum(axis=1) - fi[GrossGrowth_pools].sum(axis=1)) }).groupby('period').sum().iloc[1::10, :].reset_index()
     df_cbm['period'] = (df_cbm['period'] + 0.9).astype(int)
+    
+#################################
+    # df_cbm = pd.DataFrame({'period': pi["timestep"], 
+    #                    'biomass_stock': pi[biomass_pools].sum(axis=1),
+    #                    'dom_stock': pi[dom_pools].sum(axis=1),
+    #                    'eco_stock': pi[eco_pools].sum(axis=1),
+    #                    'ecosystem_decay_emissions': 44/12 * fi[ecosystem_decay_emissions_pools].sum(axis=1),
+    #                    'gross_growth': 44/12 * -1* fi[GrossGrowth_pools].sum(axis=1),
+    #                    'net_emissions': 44/12 * ( fi[ecosystem_decay_emissions_pools].sum(axis=1) - fi[GrossGrowth_pools].sum(axis=1)) })
+    # df_cbm = df_cbm.set_index('period')
+    # df_cbm = df_cbm.groupby((df_cbm.index - 1) // 10 + 1).sum()    
+    # df_cbm = df_cbm.reset_index()
+  
+    #######################
 
     df_cbm['eco_stock_change'] = df_cbm['eco_stock'].diff()
     df_cbm.at[0, 'eco_stock_change'] = 0.
