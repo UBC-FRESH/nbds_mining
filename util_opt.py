@@ -2187,6 +2187,8 @@ def kpi_species(fm, case_study, obj_mode, base_path='.'):
     import matplotlib.pyplot as plt
     import os
     import math
+
+    # Mapping numbers to species codes
     canfi_map_inverse = {'1211': 'AC', 
                          '1201': 'AT', 
                          '304': 'BL', 
@@ -2212,6 +2214,17 @@ def kpi_species(fm, case_study, obj_mode, base_path='.'):
     Hem = ['H', 'HM', 'HW']
     Pine = ['PA', 'PL', 'PLC', 'PW', 'PLI', 'PY']
     Spruce = ['S', 'SS', 'SW', 'SX', 'SE', 'SXW', 'SB', 'SX+AT']
+
+    colors = {
+        'Aspen': 'lightblue',
+        'Bal': 'lightgreen',
+        'Cedar': 'orange',
+        'Alder': 'yellow',
+        'DougFir': 'red',
+        'Hem': 'purple',
+        'Pine': 'brown',
+        'Spruce': 'pink'
+    }
 
     def find_corresponding_species(number):
         values = canfi_map_inverse.get(str(number))
@@ -2256,10 +2269,10 @@ def kpi_species(fm, case_study, obj_mode, base_path='.'):
             portion[theme3] * math.log(portion[theme3]) / math.log(len(fm.theme_basecodes(3)))
             for theme3 in portion if portion[theme3] > 0
         )
-        return shannon_index
+        return shannon_index, portion
 
-    shannon_0 = calculate_shannon_index(fm, time_period=0)
-    shannon_10 = calculate_shannon_index(fm, time_period=10)
+    shannon_0, portion_0 = calculate_shannon_index(fm, time_period=0)
+    shannon_10, portion_10 = calculate_shannon_index(fm, time_period=10)
 
     print(f"\nShannon Evennes Index for time period 0: {shannon_0:.4f}")
     print(f"Shannon Evennes Index for time period 10: {shannon_10:.4f}")
@@ -2269,3 +2282,38 @@ def kpi_species(fm, case_study, obj_mode, base_path='.'):
         print(f"\nDiversity has **decreased** by {shannon_difference * 100:.2f}% from time 0 to time 10.")
     else:
         print(f"\nDiversity has **increased** by {-shannon_difference * 100:.2f}% from time 0 to time 10.")
+
+    # Prepare data for pie charts (portions of each species for both time periods)
+    labels_0 = [find_corresponding_species(theme3) for theme3 in portion_0.keys()]
+    sizes_0 = [value for value in portion_0.values()]
+    labels_10 = [find_corresponding_species(theme3) for theme3 in portion_10.keys()]
+    sizes_10 = [value for value in portion_10.values()]
+
+    # Create subplots for pie charts (one row, two columns)
+    fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+
+    # Pie chart for time period 0
+    axes[0].pie(sizes_0, labels=labels_0, colors=[colors[find_corresponding_species(theme3)] for theme3 in portion_0.keys()], autopct='%1.1f%%', startangle=140)
+    axes[0].set_title("Species Distribution at Time Period 0")
+
+    # Pie chart for time period 10
+    axes[1].pie(sizes_10, labels=labels_10, colors=[colors[find_corresponding_species(theme3)] for theme3 in portion_10.keys()], autopct='%1.1f%%', startangle=140)
+    axes[1].set_title("Species Distribution at Time Period 10")
+
+    # Create a dynamic legend with species present in both time periods
+    unique_species = set(labels_0 + labels_10)  # Unique species from both time periods
+    handles = [plt.Rectangle((0, 0), 1, 1, color=colors[species]) for species in unique_species]
+    fig.legend(handles, unique_species, loc="upper right", title="Species Present")
+
+    # Save figure
+    folder_path = os.path.join('./outputs/fig', case_study)
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+    
+    file_name = f"{case_study}_{obj_mode}_species_pie.pdf"
+    file_path = os.path.join(folder_path, file_name)
+    plt.savefig(file_path)
+    plt.show()
+    plt.close()
+    
+    print(f"Pie Charts for Time Periods 0 and 10 saved to {file_path}")
