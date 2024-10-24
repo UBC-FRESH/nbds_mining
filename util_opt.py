@@ -1493,20 +1493,7 @@ def compare_ws3_cbm_both(fm, cbm_output, disturbance_type_mapping, biomass_pools
                        'gross_growth': 44/12 * -1* fi[GrossGrowth_pools].sum(axis=1),
                        'net_emissions': 44/12 * ( fi[ecosystem_decay_emissions_pools].sum(axis=1) - fi[GrossGrowth_pools].sum(axis=1)) }).groupby('period').sum().iloc[1::10, :].reset_index()
     df_cbm['period'] = (df_cbm['period'] + 0.9).astype(int)
-    
-#################################
-    # df_cbm = pd.DataFrame({'period': pi["timestep"], 
-    #                    'biomass_stock': pi[biomass_pools].sum(axis=1),
-    #                    'dom_stock': pi[dom_pools].sum(axis=1),
-    #                    'eco_stock': pi[eco_pools].sum(axis=1),
-    #                    'ecosystem_decay_emissions': 44/12 * fi[ecosystem_decay_emissions_pools].sum(axis=1),
-    #                    'gross_growth': 44/12 * -1* fi[GrossGrowth_pools].sum(axis=1),
-    #                    'net_emissions': 44/12 * ( fi[ecosystem_decay_emissions_pools].sum(axis=1) - fi[GrossGrowth_pools].sum(axis=1)) })
-    # df_cbm = df_cbm.set_index('period')
-    # df_cbm = df_cbm.groupby((df_cbm.index - 1) // 10 + 1).sum()    
-    # df_cbm = df_cbm.reset_index()
-  
-    #######################
+
 
     df_cbm['eco_stock_change'] = df_cbm['eco_stock'].diff()
     df_cbm.at[0, 'eco_stock_change'] = 0.
@@ -2065,3 +2052,220 @@ def track_system_emission(fm, half_life_solid_wood=30, half_life_paper=2, propor
 
     plt.tight_layout()
     return fig, ax, df
+
+
+################################################
+# KPI indicatores 
+################################################
+def kpi_age(fm, case_study, obj_mode, base_path='.'): 
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import os
+    import pandas as pd
+    
+    canfi_map_inverse = {'1211': 'AC', 
+                         '1201': 'AT', 
+                         '304': 'BL', 
+                         '1303': 'EP', 
+                         '500': 'FDI', 
+                         '402': 'HW',
+                         '403': 'HM',
+                         '204': 'PL', 
+                         '204': 'PLI', 
+                         '101': 'SB', 
+                         '104': 'SE', 
+                         '105': 'SW', 
+                         '100': 'SX',
+                         '100': 'S',
+                         '1201': 'AT+SX',
+                         '100': 'SX+AT'}
+    
+    Aspen = ['AC', 'ACT', 'AT', 'EP', 'VB', 'MB', 'AT+SX']
+    Bal = ['B', 'BA', 'BG', 'BL']
+    Cedar = ['CW', 'YC']
+    Alder = ['D', 'DR']
+    DougFir = ['F', 'FD', 'FDC', 'FDI']
+    Hem = ['H', 'HM', 'HW']
+    Pine = ['PA', 'PL', 'PLC', 'PW', 'PLI', 'PY']
+    Spruce = ['S', 'SS', 'SW', 'SX', 'SE', 'SXW', 'SB', 'SX+AT']
+    
+    def find_corresponding_species(number):
+        values = canfi_map_inverse.get(str(number))
+        if not values:
+            return "No corresponding value found."
+        
+        values = values.split('+')
+        for value in values:
+            if value in Aspen:
+                return 'Aspen'
+            elif value in Bal:
+                return 'Bal'
+            elif value in Cedar:
+                return 'Cedar'
+            elif value in Alder:
+                return 'Alder'
+            elif value in DougFir:
+                return 'DougFir'
+            elif value in Hem:
+                return 'Hem'
+            elif value in Pine:
+                return 'Pine'
+            elif value in Spruce:
+                return 'Spruce'
+        
+        return "No matching set found."
+    
+    # Define old growth threshold in years
+    old_growth_threshold = 100
+    
+    # Store old growth data
+    old_growth_data = {0: {}, 10: {}}  # For time periods 0 and 10
+    
+    bin_edges = np.arange(0, 480, 20)
+    colors = ['blue', 'green', 'orange', 'purple']
+    
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+    
+    for idx, time_period in enumerate([0, 10]):
+        cumulative_hist = np.zeros(len(bin_edges) - 1)
+        
+        for i, theme3 in enumerate(fm.theme_basecodes(3)):
+            data = fm.age_class_distribution(time_period, mask=f'? ? ? {theme3} ? ?')
+            x_values = list(data.keys())
+            y_values = list(data.values())
+            
+            hist, _ = np.histogram(x_values, bins=bin_edges, weights=y_values)
+            
+            species = find_corresponding_species(theme3)
+            axes[idx].bar(bin_edges[:-1], hist, width=20, bottom=cumulative_hist, color=colors[i], edgecolor='black', alpha=0.7, label=f'Species {species}')
+            
+            # Calculate old growth area for this species
+            old_growth_area = sum(y for x, y in data.items() if x >= old_growth_threshold)
+            old_growth_data[time_period][species] = old_growth_data[time_period].get(species, 0) + old_growth_area
+            
+            cumulative_hist += hist
+        
+        axes[idx].set_xlabel('Age')
+        axes[idx].set_ylabel('Area (ha)')
+        axes[idx].set_title(f'Age Distribution at time period {time_period}')
+        axes[idx].legend()  
+    
+    plt.tight_layout()
+    
+    # Save the plot
+    folder_path = os.path.join('./outputs/fig', case_study)
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)   
+    file_name = f"{case_study}_{obj_mode}_age_distribution.pdf"
+    file_path = os.path.join(folder_path, file_name)  
+    plt.savefig(file_path)
+    plt.show()
+    plt.close()   
+    print(f"Plot saved to {file_path}")
+    
+    # Convert old growth data to a DataFrame for better display
+    old_growth_df = pd.DataFrame(old_growth_data).fillna(0)
+    old_growth_df['Difference'] = old_growth_df[10] - old_growth_df[0]
+    
+    # Print old growth data as a table
+    print(f"\nOld Growth (older than {old_growth_threshold} years old) Data (in hectares). \nNegative value indicates loss of old growth and positive value indicates gain of old growth.")
+    print(old_growth_df)
+    
+    # Print conclusion about diversity change based on difference
+    if old_growth_df['Difference'].sum() < 0:
+        print(f"\nOverall diversity has **decreased** by {old_growth_df['Difference'].sum():.2f} hectarsfrom time period 0 to time period 10 .")
+    else:
+        print(f"\nOverall diversity has **increased** by {old_growth_df['Difference'].sum():.2f} hectarsfrom time period 0 to time period 10.")
+    
+    # return old_growth_df
+
+
+
+
+def kpi_species(fm, case_study, obj_mode, base_path='.'):
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import os
+    import math
+    canfi_map_inverse = {'1211': 'AC', 
+                         '1201': 'AT', 
+                         '304': 'BL', 
+                         '1303': 'EP', 
+                         '500': 'FDI', 
+                         '402': 'HW',
+                         '403': 'HM',
+                         '204': 'PL', 
+                         '204': 'PLI', 
+                         '101': 'SB', 
+                         '104': 'SE', 
+                         '105': 'SW', 
+                         '100': 'SX',
+                         '100': 'S',
+                         '1201': 'AT+SX',
+                         '100': 'SX+AT'}
+       
+    Aspen = ['AC', 'ACT', 'AT', 'EP', 'VB', 'MB', 'AT+SX']
+    Bal = ['B', 'BA', 'BG', 'BL']
+    Cedar = ['CW', 'YC']
+    Alder = ['D', 'DR']
+    DougFir = ['F', 'FD', 'FDC', 'FDI']
+    Hem = ['H', 'HM', 'HW']
+    Pine = ['PA', 'PL', 'PLC', 'PW', 'PLI', 'PY']
+    Spruce = ['S', 'SS', 'SW', 'SX', 'SE', 'SXW', 'SB', 'SX+AT']
+
+    def find_corresponding_species(number):
+        values = canfi_map_inverse.get(str(number))
+        if not values:
+            return "No corresponding value found."
+        
+        values = values.split('+')
+        for value in values:
+            if value in Aspen:
+                return 'Aspen'
+            elif value in Bal:
+                return 'Bal'
+            elif value in Cedar:
+                return 'Cedar'
+            elif value in Alder:
+                return 'Alder'
+            elif value in DougFir:
+                return 'DougFir'
+            elif value in Hem:
+                return 'Hem'
+            elif value in Pine:
+                return 'Pine'
+            elif value in Spruce:
+                return 'Spruce'
+        
+        return "No matching set found."
+    
+    def calculate_shannon_index(fm, time_period):
+        portion = {}
+        total_volume = fm.inventory(time_period, 'totvol')
+
+        for theme3 in fm.theme_basecodes(3):
+            volume = fm.inventory(time_period, 'totvol', mask=f'? ? ? {theme3} ? ?')
+            portion[theme3] = volume / total_volume if total_volume > 0 else 0
+
+        print(f"\nPortion for time period {time_period}:")
+        for theme3, value in portion.items():
+            species = find_corresponding_species(theme3)
+            print(f"{species}: {value:.4f}")
+
+        shannon_index = -sum(
+            portion[theme3] * math.log(portion[theme3]) / math.log(len(fm.theme_basecodes(3)))
+            for theme3 in portion if portion[theme3] > 0
+        )
+        return shannon_index
+
+    shannon_0 = calculate_shannon_index(fm, time_period=0)
+    shannon_10 = calculate_shannon_index(fm, time_period=10)
+
+    print(f"\nShannon Evennes Index for time period 0: {shannon_0:.4f}")
+    print(f"Shannon Evennes Index for time period 10: {shannon_10:.4f}")
+
+    shannon_difference = shannon_10 - shannon_0
+    if shannon_difference > 0:
+        print(f"\nDiversity has **decreased** by {shannon_difference * 100:.2f}% from time 0 to time 10.")
+    else:
+        print(f"\nDiversity has **increased** by {-shannon_difference * 100:.2f}% from time 0 to time 10.")
