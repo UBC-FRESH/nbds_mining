@@ -902,7 +902,7 @@ def run_scenario(fm, obj_mode, scenario_name='base', solver=ws3.opt.SOLVER_PULP)
 ##############################################################
 # Implement a simple function to run CBM from ws3 export data
 ##############################################################
-def run_cbm_maxstock(sit_config, sit_tables, n_steps):
+def run_cbm_emissionstock(sit_config, sit_tables, n_steps):
     from libcbm.input.sit import sit_reader
     from libcbm.input.sit import sit_cbm_factory 
     from libcbm.model.cbm.cbm_output import CBMOutput
@@ -1054,8 +1054,8 @@ def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_ste
     sch_alt_scenario = run_scenario(fm, obj_mode, scenario_name, solver='gurobi')
     # sch_alt_scenario = run_scenario(fm, obj_mode, scenario_name) #This uses pulp
 
-    df = compile_scenario(fm)
-    plot_scenario(df)
+    # df = compile_scenario(fm)
+    # plot_scenario(df)
     df_carbon_stock = hwp_carbon_stock(fm, products, product_coefficients, product_percentages, decay_rates, hwp_pool_effect_value)
     df_carbon_emission = hwp_carbon_emission(fm, products, product_coefficients, product_percentages, decay_rates, hwp_pool_effect_value)
     df_carbon_emission_immed = hwp_carbon_emission_immed(fm)
@@ -1105,11 +1105,13 @@ def stock_emission_scenario_equivalent(fm, clt_percentage, credibility, budget_i
     return cbm_output_3, cbm_output_4     
 
 
-def plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_steps, case_study, obj_mode, scenario_name, output_pdf_path):
-    if not os.path.exists(output_pdf_path):
-        os.makedirs(output_pdf_path)
+def plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_steps, case_study, obj_mode, scenario_name):
+    fig_folder_path = os.path.join('./outputs/fig', case_study)
+    if not os.path.exists(fig_folder_path):
+        os.makedirs(fig_folder_path)
+        
     output_filename = f"{case_study}_{obj_mode}_{scenario_name}_Carbon_emissions_stocks.pdf"
-    output_file_path = os.path.join(output_pdf_path, output_filename)
+    output_file_path = os.path.join(fig_folder_path, output_filename)
     fig, axes = plt.subplots(2, 2, sharex=True, figsize=(12, 10))   
     cbm_output_1.groupby('Year').sum().plot(ax=axes[0, 0], xlim=(0, n_steps), ylim=(0, None))
     axes[0, 0].set_title('Carbon stocks over years (alternative scenario)')
@@ -1135,11 +1137,14 @@ def plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_ste
     
 
 
-def scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps, case_study, obj_mode, scenario_name, output_pdf_path):
-    if not os.path.exists(output_pdf_path):
-        os.makedirs(output_pdf_path)
+def scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps, case_study, obj_mode, scenario_name):
+    
+    fig_folder_path = os.path.join('./outputs/fig', case_study)
+    if not os.path.exists(fig_folder_path):
+        os.makedirs(fig_folder_path)
+        
     output_filename = f"{case_study}_{obj_mode}_{scenario_name}_net_emission_difference.pdf"
-    output_file_path = os.path.join(output_pdf_path, output_filename)
+    output_file_path = os.path.join(fig_folder_path, output_filename)
     cbm_output_2.reset_index(drop=False, inplace=True)
     dif_scenario = pd.DataFrame({"Year": cbm_output_2["Year"],
                        "Net emission": cbm_output_2['Net emission'] - cbm_output_4['Net emission']})
@@ -1157,17 +1162,18 @@ def scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps, case_study, 
     return ax
 
 
-def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, case_study, obj_mode, output_csv_path, output_pdf_path, pickle_output_base,  
+def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, case_study, obj_mode, pickle_output_base,  
                   pickle_output_alter):
     from util_opt import stock_emission_scenario, plot_scenarios, scenario_dif, stock_emission_scenario_equivalent
 
-    # Ensure output path exists
-    if not os.path.exists(output_csv_path):
-        os.makedirs(output_csv_path)
+    # Create a folder for pickle outputs
+    pickle_folder_path = os.path.join('./outputs/pickle', case_study)
+    if not os.path.exists(pickle_folder_path):
+        os.makedirs(pickle_folder_path)
 
     # Define pickle file paths_alter
-    pickle_file_1 = os.path.join(output_csv_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_1.pkl')
-    pickle_file_2 = os.path.join(output_csv_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_2.pkl')
+    pickle_file_1 = os.path.join(pickle_folder_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_1.pkl')
+    pickle_file_2 = os.path.join(pickle_folder_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_2.pkl')
 
    # Check if pickled cbm_output_1 and cbm_output_2 already exist
     if pickle_output_alter and os.path.exists(pickle_file_1) and os.path.exists(pickle_file_2):
@@ -1184,18 +1190,25 @@ def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, ma
         with open(pickle_file_2, 'wb') as f:
             pickle.dump(cbm_output_2, f)
         print("Saved cbm_output_1 and cbm_output_2 as pickle files.")
+    
+    kpi_age(fm, case_study, obj_mode, scenario_name)
+    kpi_species(fm, case_study, obj_mode, scenario_name)
 
+    # Create a folder for csv file outputs
+    csv_folder_path = os.path.join('./outputs/csv', case_study)
+    if not os.path.exists(csv_folder_path):
+        os.makedirs(csv_folder_path)
     # Save cbm_output_2 as CSV
     cbm_output_2_df = pd.DataFrame(cbm_output_2)
-    cbm_output_2_file = os.path.join(output_csv_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_2.csv')
+    cbm_output_2_file = os.path.join(csv_folder_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_2.csv')
     cbm_output_2_df.to_csv(cbm_output_2_file, index=False)
     # print(cbm_output_2)
 
     fm.reset()
 
     # Define pickle file paths_base
-    pickle_file_3 = os.path.join(output_csv_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_3.pkl')
-    pickle_file_4 = os.path.join(output_csv_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_4.pkl')
+    pickle_file_3 = os.path.join(pickle_folder_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_3.pkl')
+    pickle_file_4 = os.path.join(pickle_folder_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_4.pkl')
 
     # Check if pickled cbm_output_3 and cbm_output_4 already exist
     if pickle_output_base and os.path.exists(pickle_file_3) and os.path.exists(pickle_file_4):
@@ -1207,15 +1220,19 @@ def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, ma
         print("Loaded cbm_output_3 and cbm_output_4 from pickle files.")
     else:
         # Run base scenario if pickle files don't exist
-        if case_study == 'redchrs':
+        if case_study == 'redchris':
             scenario_name = 'bau_redchrs'
-        elif case_study == 'eqtslvr':
+        elif case_study == 'equitysilver':
             scenario_name = 'bau_eqtslvr'
-        elif case_study == 'gldbr':
+        elif case_study == 'goldenbear':
             scenario_name = 'bau_gldbr'
+        elif case_study == 'test':
+            scenario_name = 'no_cons'
+        else:
+            raise ValueError('Invalid case_study: %s' % case_study)
 
         cbm_output_3, cbm_output_4 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, obj_mode)
-
+        
         # Save cbm_output_3 and cbm_output_4 as pickle
         with open(pickle_file_3, 'wb') as f:
             pickle.dump(cbm_output_3, f)
@@ -1223,17 +1240,20 @@ def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, ma
             pickle.dump(cbm_output_4, f)
         print("Saved cbm_output_3 and cbm_output_4 as pickle files.")
 
+    kpi_age(fm, case_study, obj_mode, scenario_name)
+    kpi_species(fm, case_study, obj_mode, scenario_name)
+
     # Save cbm_output_4 as CSV
     cbm_output_4_df = pd.DataFrame(cbm_output_4)
-    cbm_output_4_file = os.path.join(output_csv_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_4.csv')
+    cbm_output_4_file = os.path.join(csv_folder_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_4.csv')
     cbm_output_4_df.to_csv(cbm_output_4_file, index=False)
     # print(cbm_output_4)
 
     # Plot scenarios
-    plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_steps, case_study, obj_mode, scenario_name, output_pdf_path)
+    plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_steps, case_study, obj_mode, scenario_name)
     
     # Scenario difference plot
-    dif_plot = scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps, case_study, obj_mode, scenario_name, output_pdf_path)
+    dif_plot = scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps, case_study, obj_mode, scenario_name)
 
 
 def cbm_report(fm, cbm_output, biomass_pools, dom_pools, fluxes, gross_growth):
@@ -1695,14 +1715,12 @@ def compare_ws3_cbm_exactmatch(fm, cbm_output, disturbance_type_mapping, biomass
 
 
 def plugin_c_curves_both(fm, c_curves_p, c_curves_f, pools, fluxes):
-    # for dtype_key in dt_tuples:
     for dtype_key in fm.dtypes:
         dt = fm.dt(dtype_key)
         mask = ('?', '?', '?', '?', dtype_key[4], dtype_key[5])
         for _mask, ytype, curves in fm.yields:
             if _mask != mask: continue # we know there will be a match so this works
-            print('found match for mask', mask)
-            # print('found match for development key', dtype_key)
+            # print('found match for mask', mask)
             pool_data = c_curves_p.loc[' '.join(dtype_key)]
             for yname in pools:
                 points = list(zip(pool_data.index.values, pool_data[yname]))
@@ -2057,7 +2075,7 @@ def track_system_emission(fm, half_life_solid_wood=30, half_life_paper=2, propor
 ################################################
 # KPI indicatores 
 ################################################
-def kpi_age(fm, case_study, obj_mode, base_path='.'): 
+def kpi_age(fm, case_study, obj_mode, scenario_name, base_path='.'): 
     import numpy as np
     import matplotlib.pyplot as plt
     import os
@@ -2156,14 +2174,14 @@ def kpi_age(fm, case_study, obj_mode, base_path='.'):
     folder_path = os.path.join('./outputs/fig', case_study)
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)   
-    file_name = f"{case_study}_{obj_mode}_age_distribution.pdf"
+    file_name = f"{case_study}_{obj_mode}_{scenario_name}_age_distribution.pdf"
     file_path = os.path.join(folder_path, file_name)  
     plt.savefig(file_path)
     plt.show()
     plt.close()   
     print(f"Plot saved to {file_path}")
     
-    # Convert old growth data to a DataFrame for better display
+ # Convert old growth data to a DataFrame for better display
     old_growth_df = pd.DataFrame(old_growth_data).fillna(0)
     old_growth_df['Difference'] = old_growth_df[10] - old_growth_df[0]
     
@@ -2173,16 +2191,37 @@ def kpi_age(fm, case_study, obj_mode, base_path='.'):
     
     # Print conclusion about diversity change based on difference
     if old_growth_df['Difference'].sum() < 0:
-        print(f"\nOverall diversity has **decreased** by {old_growth_df['Difference'].sum():.2f} hectarsfrom time period 0 to time period 10 .")
+        print(f"\nOverall diversity has **decreased** by {old_growth_df['Difference'].sum():.2f} hectares from time period 0 to time period 10.")
     else:
-        print(f"\nOverall diversity has **increased** by {old_growth_df['Difference'].sum():.2f} hectarsfrom time period 0 to time period 10.")
+        print(f"\nOverall diversity has **increased** by {old_growth_df['Difference'].sum():.2f} hectares from time period 0 to time period 10.")
+    
+    # Plot clustered column chart for old growth areas by species for each time period
+    fig, ax = plt.subplots(figsize=(7, 6))
+    old_growth_df[[0, 10]].plot(kind='bar', color=['skyblue', 'salmon'], ax=ax)
+    
+    ax.set_title("Old Growth Area by Species (Period 0 vs Period 10)")
+    ax.set_xlabel("Species")
+    ax.set_ylabel("Old Growth Area (ha)")
+    ax.legend(["Period 0", "Period 10"])
+    
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    
+    # Save the clustered column chart
+    clustered_chart_file = f"{case_study}_{obj_mode}_{scenario_name}_old_growth_comparison.pdf"
+    clustered_chart_path = os.path.join(folder_path, clustered_chart_file)
+    plt.savefig(clustered_chart_path)
+    plt.show()
+    plt.close()
+    
+    print(f"Clustered column plot saved to {clustered_chart_path}")
     
     # return old_growth_df
 
 
 
 
-def kpi_species(fm, case_study, obj_mode, base_path='.'):
+def kpi_species(fm, case_study, obj_mode, scenario_name, base_path='.'):
     import numpy as np
     import matplotlib.pyplot as plt
     import os
@@ -2278,10 +2317,10 @@ def kpi_species(fm, case_study, obj_mode, base_path='.'):
     print(f"Shannon Evennes Index for time period 10: {shannon_10:.4f}")
 
     shannon_difference = shannon_10 - shannon_0
-    if shannon_difference > 0:
-        print(f"\nDiversity has **decreased** by {shannon_difference * 100:.2f}% from time 0 to time 10.")
+    if shannon_difference < 0:
+        print(f"\nDiversity has **decreased** by {abs(shannon_difference) * 100:.2f}% from time 0 to time 10.")
     else:
-        print(f"\nDiversity has **increased** by {-shannon_difference * 100:.2f}% from time 0 to time 10.")
+        print(f"\nDiversity has **increased** by {abs(shannon_difference) * 100:.2f}% from time 0 to time 10.")
 
     # Prepare data for pie charts (portions of each species for both time periods)
     labels_0 = [find_corresponding_species(theme3) for theme3 in portion_0.keys()]
@@ -2310,7 +2349,7 @@ def kpi_species(fm, case_study, obj_mode, base_path='.'):
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
     
-    file_name = f"{case_study}_{obj_mode}_species_pie.pdf"
+    file_name = f"{case_study}_{obj_mode}_{scenario_name}_species_pie.pdf"
     file_path = os.path.join(folder_path, file_name)
     plt.savefig(file_path)
     plt.show()
