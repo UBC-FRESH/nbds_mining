@@ -66,23 +66,23 @@ def schedule_harvest_areacontrol(fm, max_harvest, period=None, acode='harvest', 
 # HWP effect
 ################################################
 
-def calculate_co2_value_stock(fm, i, product_coefficient, decay_rate, product_percentage):      
+def calculate_co2_value_stock(fm, i, product_coefficient, decay_rate, product_percentage, util=0.85):      
     """
     Calculate carbon stock for harvested wood products for period `i`.
     """
     period = math.ceil(i / fm.period_length)
     return (
-        sum(fm.compile_product(period, f'totvol * {product_coefficient} * {product_percentage}') / 10 * (1 - decay_rate)**(i - j)
+        sum(fm.compile_product(period, f'totvol * {product_coefficient} * {product_percentage} * {util}') / 10 * (1 - decay_rate)**(i - j)
         for j in range(1, i + 1)
         ) * 460 * 0.5 * 44 / 12
     )
     
 
-def calculate_initial_co2_value_stock(fm, i, product_coefficient, product_percentage):
+def calculate_initial_co2_value_stock(fm, i, product_coefficient, product_percentage, util=0.85):
     """
     Calculate carbon stock for harvested wood products for period 1.
     """
-    return fm.compile_product(i, f'totvol * {product_coefficient} * {product_percentage}') * 0.1 * 460 * 0.5 * 44 / 12 / fm.period_length
+    return fm.compile_product(i, f'totvol * {product_coefficient} * {product_percentage} * {util}') * 0.1 * 460 * 0.5 * 44 / 12 / fm.period_length
 
 
 def hwp_carbon_stock(fm, products, product_coefficients, product_percentages, decay_rates, hwp_pool_effect_value):
@@ -111,22 +111,29 @@ def hwp_carbon_stock(fm, products, product_coefficients, product_percentages, de
     return df_carbon_stock
 
 
-def calculate_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage):
+def calculate_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage, util=0.85):
     period = math.ceil(i / fm.period_length)
     return (
-        sum(fm.compile_product(period, f'totvol * {product_coefficient} * {product_percentage}') * 0.1 * (1 - decay_rate)**(i - j)
+        sum(fm.compile_product(period, f'totvol * {product_coefficient} * {product_percentage} * {util}') * 0.1 * (1 - decay_rate)**(i - j)
         for j in range(1, i + 1)
         ) * 460 * 0.5 * 44 / 12 * decay_rate 
  )
 
+def calculate_co2_value_emission_residue(fm, i, util=0.85):
+    period = math.ceil(i / fm.period_length)
+    return (
+        fm.compile_product(period, f'totvol * {1- util}') * 0.1 * 460 * 0.5 * 44 / 12
+ )
 
-def calculate_initial_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage):
-    return fm.compile_product(i, f'totvol * {product_coefficient} * {product_percentage}') * 0.1 * 460 * 0.5 * 44 / 12 * decay_rate  / fm.period_length
+def calculate_initial_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage, util=0.85):
+    return fm.compile_product(i, f'totvol * {product_coefficient} * {product_percentage} * {util}') * 0.1 * 460 * 0.5 * 44 / 12 * decay_rate  / fm.period_length
 
+def calculate_initial_co2_value_emission_residue(fm, i, util=0.85):
+    return fm.compile_product(i, f'totvol  * {util}') * 0.1 * 460 * 0.5 * 44 / 12  / fm.period_length
 
 # Emission (by year)
 def hwp_carbon_emission(fm, products, product_coefficients, product_percentages, decay_rates, hwp_pool_effect_value):
-    from util_opt import calculate_co2_value_emission, calculate_initial_co2_value_emission
+    from util_opt import calculate_co2_value_emission, calculate_initial_co2_value_emission, calculate_co2_value_emission_residue, calculate_initial_co2_value_emission_residue
     data_carbon_emission = {'period': [], 'co2_emission': []}    
     for i in range(0, fm.horizon * 10  + 1):
         period_value = i
@@ -138,9 +145,11 @@ def hwp_carbon_emission(fm, products, product_coefficients, product_percentages,
             if i == 0:
                 co2_values_emission.append(0)
             elif i == 1:
-                co2_values_emission.append(hwp_pool_effect_value * calculate_initial_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage))
+                co2_values_emission.append(hwp_pool_effect_value * (calculate_initial_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage) + calculate_initial_co2_value_emission_residue(fm, i) ))
             else:
-                co2_values_emission.append(hwp_pool_effect_value * calculate_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage))
+                co2_values_emission.append(hwp_pool_effect_value * (calculate_co2_value_emission(fm, i, product_coefficient, decay_rate, product_percentage) + calculate_co2_value_emission_residue(fm, i)))
+        
+        
         co2_value_emission = sum(co2_values_emission) / 1000
         data_carbon_emission['period'].append(period_value)
         data_carbon_emission['co2_emission'].append(co2_value_emission)    
@@ -168,9 +177,9 @@ def hwp_carbon_emission_immed(fm):
 # Displacement effect
 ################################################
 # Displacement of concrete manufacturing
-def calculate_concrete_volume(fm, i, product_coefficients, clt_percentage, credibility, clt_conversion_rate):            
+def calculate_concrete_volume(fm, i, product_coefficients, clt_percentage, credibility, clt_conversion_rate, util=0.85):            
     period = math.ceil(i / fm.period_length)
-    return fm.compile_product(period,'totvol') * product_coefficients['plumber'] * clt_percentage * credibility / clt_conversion_rate 
+    return fm.compile_product(period,'totvol') * product_coefficients['plumber'] * clt_percentage * credibility * util / clt_conversion_rate 
 
 
 # Iterate through the rows of the DataFrame
@@ -224,7 +233,8 @@ def compile_scenario(fm):
     return df
 
 
-def plot_scenario(df):
+def plot_scenario(df, case_study, obj_mode, scenario_name):
+    import os
     fig, ax = plt.subplots(1, 3, figsize=(12, 4))
     ax[0].bar(df.period, df.oha)
     ax[0].set_ylim(0, None)
@@ -235,6 +245,23 @@ def plot_scenario(df):
     ax[2].bar(df.period, df.ogs)
     ax[2].set_ylim(0, None)
     ax[2].set_title('Growing Stock (m3)')
+    
+    plt.tight_layout()
+    
+    folder_path = os.path.join('./outputs/fig', case_study)
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)   
+    file_name = f"{case_study}_{obj_mode}_{scenario_name}_scheduling.pdf"
+    file_path = os.path.join(folder_path, file_name)
+    
+    # Save and show plot
+    plt.savefig(file_path)
+    plt.show()
+    plt.close()
+    print(f"Plot saved to {file_path}")
+
+
+    
     return fig, ax
 
 
@@ -269,7 +296,7 @@ def compile_scenario_maxstock(fm):
     return df
 
 
-def plot_scenario_maxstock(df):
+def plot_scenario_maxstock(df, case_study, obj_mode, scenario_name):
     fig, ax = plt.subplots(1, 4, figsize=(20, 5))
     # Plot and label the first subplot for harvested area
     ax[0].bar(df.period, df.oha)
@@ -305,6 +332,21 @@ def plot_scenario_maxstock(df):
     # ax[4].set_title('Total Carbon Emission')
     # ax[4].set_xlabel('Period')
     # ax[4].set_ylabel('tons of C')
+
+    plt.tight_layout()
+    
+    folder_path = os.path.join('./outputs/fig', case_study)
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)   
+    file_name = f"{case_study}_{obj_mode}_{scenario_name}_scheduling_maxstock.pdf"
+    file_path = os.path.join(folder_path, file_name)
+    
+    # Save and show plot
+    plt.savefig(file_path)
+    plt.show()
+    plt.close()
+    print(f"Plot saved to {file_path}")
+    
     return fig, ax
 
 
@@ -324,7 +366,8 @@ def compile_scenario_minemission(fm):
     return df
 
 
-def plot_scenario_minemission(df):
+def plot_scenario_minemission(df, case_study, obj_mode, scenario_name):
+    import os
     fig, ax = plt.subplots(1, 5, figsize=(20, 5))
     # Plot and label the first subplot for harvested area
     ax[0].bar(df.period, df.oha)
@@ -360,6 +403,21 @@ def plot_scenario_minemission(df):
     ax[4].set_title('Net Carbon Emission')
     ax[4].set_xlabel('Period')
     ax[4].set_ylabel('tons of CO2')
+
+    plt.tight_layout()
+    
+    folder_path = os.path.join('./outputs/fig', case_study)
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)   
+    file_name = f"{case_study}_{obj_mode}_{scenario_name}_scheduling_minemission.pdf"
+    file_path = os.path.join(folder_path, file_name)
+    
+    # Save and show plot
+    plt.savefig(file_path)
+    plt.show()
+    plt.close()
+    print(f"Plot saved to {file_path}")
+    
     return fig, ax
 
 
@@ -399,53 +457,6 @@ def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, 
     return result
 
 
-# def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=0.8, displacement_factor=2 , mask=None):
-#     """
-#     Compile objective function coefficient for total system carbon stock indicators (given ForestModel instance, 
-#     leaf-to-root-node path, and expression to evaluate).
-#     """
-#     k_wood = math.log(2) / half_life_solid_wood  # Decay rate for solid wood products (30-year half-life)
-#     k_paper = math.log(2) / half_life_paper  # Decay rate for paper (2-year half-life)
-#     # k_wood = 0.
-#     # k_paper = 0.
-#     wood_density = 460 #kg/m3
-#     carbon_content = 0.5 # percent
-#     result = 0.
-#     hwp_wood_emission = 0.
-#     hwp_paper_emission = 0.
-#     hwp_accu_wood = 0.
-#     hwp_accu_wood = 0.
-#     hwp_accu_paper = 0.
-#     ecosystem = 0.
-#     clt_percentage = 0.5
-#     credibility = 1.
-#     clt_conversion_rate = 1.24
-#     co2_concrete_manu_accu = 0.
-#     co2_concrete_landfill = 0.
-#     co2_concrete_manu_factor = 298. #kg/m3
-#     concrete_density = 2400 #kg/m3
-#     co2_concrete_landfill_factor = 0.00517 * concrete_density
-#     co2_concrete_landfill_accu = 0.
-    
-#     for t, n in enumerate(path, start=1):        
-#         d = n.data()     
-#         if fm.is_harvest(d['acode']):
-#             result_hwp = fm.compile_product(t, 'totvol', d['acode'], [d['dtk']], d['age'], coeff=False) * wood_density * carbon_content/1000. 
-#             concrete_volume = fm.compile_product(t, 'totvol', d['acode'], [d['dtk']], d['age'], coeff=False) * proportion_solid_wood * clt_percentage * credibility / clt_conversion_rate 
-
-#         else:
-#             result_hwp = 0.  
-#             concrete_volume = 0.
-#         hwp_accu_wood  = hwp_accu_wood * (1-k_wood)**10 + result_hwp * proportion_solid_wood
-#         hwp_accu_paper = hwp_accu_paper * (1-k_paper)**10 + result_hwp * (1- proportion_solid_wood) 
-#         hwp_wood_emission  =  (hwp_accu_wood * (1- (1-k_wood)**10) * wood_density * carbon_content * 44/12) /1000.
-#         hwp_paper_emission =  (hwp_accu_paper * (1- (1-k_paper)**10) * wood_density * carbon_content * 44/12 ) /1000.
-#         net_emissions = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
-#         co2_concrete_manu_accu += concrete_volume * co2_concrete_manu_factor / 1000.
-#         co2_concrete_landfill_accu += concrete_volume * co2_concrete_landfill_factor / 1000.
-#         result += hwp_wood_emission + hwp_paper_emission + net_emissions - co2_concrete_manu_accu - co2_concrete_landfill_accu
-
-#     return result
 
 
 def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=0.8, displacement_factor=2, util=0.85, mask=None):
@@ -624,146 +635,7 @@ def gen_scenario(fm, name='base', util=0.85, harvest_acode='harvest',
 
 
 
-# This for using ws3 before pulp implementation
-# def run_scenario(fm, obj_mode, scenario_name='base'):
-#     import gurobipy as grb
-#     initial_inv_equit = 869737. #ha
-#     initial_gs_equit = 106582957.  #m3   
-#     initial_inv_red = 390738.
-#     initial_gs_red =18018809.
-#     initial_inv_gold = 191273.
-#     initial_gs_gold = 7017249.
-#     aac_equity =  18255528. # AAC per year * 10
-#     aac_red =  1072860. # AAC per year * 10
-#     aac_gold =  766066. # AAC per year * 10
-#     cflw_ha = {}
-#     cflw_hv = {}
-#     cgen_ha = {}
-#     cgen_hv = {}
-#     cgen_gs = {}
-
-#     if scenario_name == 'test': 
-#         # no_cons scenario : 
-#         print('running no constraints scenario')
-#         cgen_hv = {'lb':{1:1}, 'ub':{1:200}}
-#     elif scenario_name == 'no_cons': 
-#         # no_cons scenario : 
-#         print('running no constraints scenario')
-#         # cflw_ha = ({p:0.05 for p in fm.periods}, 1)
-#         # cflw_hv = ({p:0.05 for p in fm.periods}, 1)
-#         # cgen_ha = {'lb':{1:0}, 'ub':{1:0}}
-#     # Golden Bear scenarios
-#     elif scenario_name == 'bau_gldbr': 
-#         # Business as usual scenario for Golden Bear mining site: 
-#         print('running business as usual scenario for the Golden Bear mine site')
-#         cgen_hv = {'lb':{1:aac_gold}, 'ub':{1:aac_gold}}
-#         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
-#         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
-
-#     # Red Chris Scenarios
-#     elif scenario_name == 'bau_redchrs': 
-#         # Business as usual scenario for the Red Chris mining site: 
-#         print('running business as usual scenario for the Red Chris mining site,')
-#         cgen_hv = {'lb':{1:aac_red}, 'ub':{1:aac_red}} 
-#         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
-#         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
-
-#     elif scenario_name == 'redchrs_gs_hv_ha_100': 
-#         # BAU scenario, plus harvest area general constraints 100%
-#         print('running alternative scenario with harvest area constraints (100%)')
-#         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
-#         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
-#         cgen_ha = {'lb':{1:0}, 'ub':{1:initial_inv_red*1}}
-#         cgen_hv = {'lb':{1:0.9*aac_red}, 'ub':{1:aac_red}} # at least 90% of aac
-#         cgen_gs = {'lb':{10:initial_gs_red}, 'ub':{10:initial_gs_red*10}} #Not less than 90% of initial growing stock at the end
-
-#     elif scenario_name == 'redchrs_gs_hv_ha_90': 
-#         # BAU scenario, plus harvest area general constraints 100%
-#         print('running alternative scenario with harvest area constraints (90%)')
-#         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
-#         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
-#         cgen_ha = {'lb':{1:0}, 'ub':{1:initial_inv_red*0.9}}
-#         cgen_hv = {'lb':{1:0.9*aac_red}, 'ub':{1:aac_red}} # at least 90% of aac
-#         cgen_gs = {'lb':{10:initial_gs_red}, 'ub':{10:initial_gs_red*10}} #Not less than 90% of initial growing stock at the end
-
-    
-#     # Equity Silver scenarios
-#     elif scenario_name == 'bau_eqtslvr': 
-#         # Business as usual scenario for the Equity Silver mining site: 
-#         print('running business as usual scenario for the Equity Silver mining site')
-#         cgen_hv = {'lb':{1:0.7*aac_equity}, 'ub':{1:0.7*aac_equity}} 
-#         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
-#         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
-        
-    
-
-    
-#     elif scenario_name == 'base-cgen_ha_90%': 
-#         # Base scenario, plus harvest area general constraints 90%
-#         print('running base scenario plus harvest area constraints')
-#         cgen_ha = {'lb':{1:initial_inv*0.1}, 'ub':{1:initial_inv*0.9}}   
-#     elif scenario_name == 'base-cgen_ha_80%': 
-#         # Base scenario, plus harvest area general constraints 80%
-#         print('running base scenario plus harvest area constraints')
-#         cgen_ha = {'lb':{1:initial_inv*0.1}, 'ub':{1:initial_inv*0.8}}
-#     elif scenario_name == 'base-cgen_ha_0%': 
-#         # Base scenario, plus harvest area general constraints 70%
-#         print('running base scenario plus harvest area constraints 0%')
-#         cgen_ha = {'lb':{1:initial_inv*1}, 'ub':{1:initial_inv*1}} 
-#     elif scenario_name == 'base-cgen_hv': 
-#         # Base scenario, plus harvest volume general constraints
-#         print('running base scenario plus harvest volume constraints')
-#         cgen_hv = {'lb':{1:100000.}, 'ub':{1:100100.}}    
-#     elif scenario_name == 'base-cgen_gs': 
-#         # Base scenario, plus growing stock general constraints
-#         print('running base scenario plus growing stock constraints')
-#         cgen_gs = {'lb':{10:10000000.}, 'ub':{10:10000100.}}
-#     elif scenario_name == 'base-cgen_gs_ha_100': 
-#         # Base scenario, plus growing stock general constraints
-#         print('running maxmizie harvest scenario scenario plus growing stock constraints plus harvest area constraints 100%')
-#         cgen_gs = {'lb':{x:initial_gs*0.9 for x in range(1,11)}, 'ub':{x:initial_gs*100 for x in range(1,11)}} #Not less than 90% of initial growing stock
-#         # cgen_hv = {'lb':{20:AAC-1}, 'ub':{20:AAC}} #Achieve the Annual Allowable Cut
-#         cgen_ha = {'lb':{1:initial_inv*0.1}, 'ub':{1:initial_inv*1}} 
-    
-#     else:
-#         assert False # bad scenario name
-#     p = gen_scenario(fm=fm, 
-#                      name=scenario_name, 
-#                      cflw_ha=cflw_ha, 
-#                      cflw_hv=cflw_hv,
-#                      cgen_ha=cgen_ha,
-#                      cgen_hv=cgen_hv,
-#                      cgen_gs=cgen_gs,
-#                     obj_mode=obj_mode)
-#     fm.reset()
-#     m = p.solve()
-#     if m.status != grb.GRB.OPTIMAL:
-#         print('Model not optimal.')
-#         sys.exit()
-#     sch = fm.compile_schedule(p)
-#     fm.apply_schedule(sch, 
-#                       force_integral_area=False, 
-#                       override_operability=False,
-#                       fuzzy_age=False,
-#                       recourse_enabled=False,
-#                       verbose=False,
-#                       compile_c_ycomps=True)
-    
-#     if obj_mode == 'max_hv' or obj_mode == 'min_ha':
-#         df = compile_scenario(fm)
-#         plot_scenario(df)
-#     elif obj_mode == 'max_st':
-#         df = compile_scenario_maxstock(fm)
-#         plot_scenario_maxstock(df) 
-#     elif obj_mode == 'min_em':
-#         df = compile_scenario_minemission(fm)
-#         plot_scenario_minemission(df)
-#     else:
-#         raise ValueError('Invalid obj_mode: %s' % obj_mode) 
-#     return sch
-
-
-def run_scenario(fm, obj_mode, scenario_name='base', solver=ws3.opt.SOLVER_PULP):
+def run_scenario(fm, case_study, obj_mode, scenario_name='base', solver=ws3.opt.SOLVER_PULP):
     import gurobipy as grb
     initial_inv_equit = 869737. #ha
     initial_gs_equit = 106582957.  #m3   
@@ -787,9 +659,9 @@ def run_scenario(fm, obj_mode, scenario_name='base', solver=ws3.opt.SOLVER_PULP)
     elif scenario_name == 'no_cons': 
         # no_cons scenario : 
         print('running no constraints scenario')
-        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
-        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
-        cgen_ha = {'lb':{1:0}, 'ub':{1:0}}
+        # cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        # cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        # cgen_ha = {'lb':{1:0}, 'ub':{1:0}}
     # Golden Bear scenarios
     elif scenario_name == 'bau_gldbr': 
         # Business as usual scenario for Golden Bear mining site: 
@@ -893,13 +765,13 @@ def run_scenario(fm, obj_mode, scenario_name='base', solver=ws3.opt.SOLVER_PULP)
     
     if obj_mode == 'max_hv' or obj_mode == 'min_ha':
         df = compile_scenario(fm)
-        plot_scenario(df)
+        plot_scenario(df, case_study, obj_mode, scenario_name)
     elif obj_mode == 'max_st':
         df = compile_scenario_maxstock(fm)
-        plot_scenario_maxstock(df) 
+        plot_scenario_maxstock(df, case_study, obj_mode, scenario_name) 
     elif obj_mode == 'min_em':
         df = compile_scenario_minemission(fm)
-        plot_scenario_minemission(df)
+        plot_scenario_minemission(df, case_study, obj_mode, scenario_name)
     else:
         raise ValueError('Invalid obj_mode: %s' % obj_mode) 
     return sch
@@ -1048,7 +920,7 @@ def run_cbm(df_carbon_stock, df_carbon_emission, df_carbon_emission_immed, df_em
     return annual_carbon_stocks, annual_net_emission
 
 
-def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, obj_mode):   
+def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, case_study, obj_mode):   
     decay_rates = {'plumber':math.log(2.)/35., 'ppaper':math.log(2.)/2.}
     product_coefficients = {'plumber':0.9, 'ppaper':0.1}
     product_percentages = {'plumber':0.5, 'ppaper':1.}
@@ -1057,8 +929,8 @@ def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_ste
     co2_concrete_manu_factor = 298.
     concrete_density = 2400 #kg/m3
     co2_concrete_landfill_factor = 0.00517 * concrete_density
-    sch_alt_scenario = run_scenario(fm, obj_mode, scenario_name, solver='gurobi')
-    # sch_alt_scenario = run_scenario(fm, obj_mode, scenario_name) #This uses pulp
+    sch_alt_scenario = run_scenario(fm, case_study, obj_mode, scenario_name, solver='gurobi')
+    # sch_alt_scenario = run_scenario(fm, case_study, obj_mode, scenario_name) #This uses pulp
 
     # df = compile_scenario(fm)
     # plot_scenario(df)
@@ -1092,7 +964,7 @@ def stock_emission_scenario_equivalent(fm, clt_percentage, credibility, budget_i
     co2_concrete_landfill_factor = 0.00517 * concrete_density
     sch_base_scenari = schedule_harvest_areacontrol(fm, max_harvest) #equivalent harvesting with heuristics
     df = compile_scenario(fm)
-    plot_scenario(df)
+    plot_scenario(df, case_study, obj_mode, scenario_name)
     df_carbon_stock = hwp_carbon_stock(fm, products, product_coefficients, product_percentages, decay_rates, hwp_pool_effect_value)
     df_carbon_emission = hwp_carbon_emission(fm, products, product_coefficients, product_percentages, decay_rates, hwp_pool_effect_value)
     df_carbon_emission_immed = hwp_carbon_emission_immed(fm)
@@ -1111,12 +983,12 @@ def stock_emission_scenario_equivalent(fm, clt_percentage, credibility, budget_i
     return cbm_output_3, cbm_output_4     
 
 
-def plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_steps, case_study, obj_mode, scenario_name):
+def plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_steps, case_study, obj_mode):
     fig_folder_path = os.path.join('./outputs/fig', case_study)
     if not os.path.exists(fig_folder_path):
         os.makedirs(fig_folder_path)
         
-    output_filename = f"{case_study}_{obj_mode}_{scenario_name}_Carbon_emissions_stocks.pdf"
+    output_filename = f"{case_study}_{obj_mode}_Carbon_emissions_stocks.pdf"
     output_file_path = os.path.join(fig_folder_path, output_filename)
     fig, axes = plt.subplots(2, 2, sharex=True, figsize=(12, 10))   
     cbm_output_1.groupby('Year').sum().plot(ax=axes[0, 0], xlim=(0, n_steps), ylim=(0, None))
@@ -1143,13 +1015,13 @@ def plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_ste
     
 
 
-def scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps, case_study, obj_mode, scenario_name):
+def scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps, case_study, obj_mode):
     
     fig_folder_path = os.path.join('./outputs/fig', case_study)
     if not os.path.exists(fig_folder_path):
         os.makedirs(fig_folder_path)
         
-    output_filename = f"{case_study}_{obj_mode}_{scenario_name}_net_emission_difference.pdf"
+    output_filename = f"{case_study}_{obj_mode}_net_emission_difference.pdf"
     output_file_path = os.path.join(fig_folder_path, output_filename)
     cbm_output_2.reset_index(drop=False, inplace=True)
     dif_scenario = pd.DataFrame({"Year": cbm_output_2["Year"],
@@ -1168,15 +1040,60 @@ def scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps, case_study, 
     return ax
 
 
+
+def compare_kpi_age(kpi_age_base, kpi_age_alt, case_study, obj_mode):
+    import os  
+    
+    # Calculate the difference in old growth area between the two scenarios
+    comparison_df = kpi_age_alt - kpi_age_base
+    comparison_df['Difference'] = comparison_df[10] - comparison_df[0]
+    
+    print("Comparison of Old Growth Areas (Alternative - Base)")
+    print(comparison_df)
+    
+    total_difference = comparison_df['Difference'].sum()
+    if total_difference < 0:
+        print(f"\nOverall, the old growth area has **decreased** by {total_difference:.2f} hectares in the alternative scenario compared to the base scenario.")
+    else:
+        print(f"\nOverall, the old growth area has **increased** by {total_difference:.2f} hectares in the alternative scenario compared to the base scenario.")
+    
+    fig, ax = plt.subplots(figsize=(8, 6))
+    comparison_df[['Difference']].plot(kind='bar', color="#FF4500", ax=ax)
+    
+    ax.set_title("Difference in Old Growth Area by Species (Alternative vs Base)")
+    ax.set_xlabel("Species")
+    ax.set_ylabel("Difference in Old Growth Area (ha)")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+    
+    folder_path = os.path.join('./outputs/fig', case_study)
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)   
+    file_name = f"{case_study}_{obj_mode}_kpi_age_difference.pdf"
+    file_path = os.path.join(folder_path, file_name)  
+    plt.savefig(file_path)
+    plt.show()
+    plt.close()   
+    print(f"Plot saved to {file_path}")
+
+    return comparison_df
+
+
+
+
+
 def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, case_study, obj_mode, pickle_output_base,  
                   pickle_output_alter):
-    from util_opt import stock_emission_scenario, plot_scenarios, scenario_dif, stock_emission_scenario_equivalent
+    from util_opt import stock_emission_scenario, plot_scenarios, scenario_dif, stock_emission_scenario_equivalent, compare_kpi_age
+
 
     # Create a folder for pickle outputs
     pickle_folder_path = os.path.join('./outputs/pickle', case_study)
     if not os.path.exists(pickle_folder_path):
         os.makedirs(pickle_folder_path)
 
+     # Run Alternative scenario
     # Define pickle file paths_alter
     pickle_file_1 = os.path.join(pickle_folder_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_1.pkl')
     pickle_file_2 = os.path.join(pickle_folder_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_2.pkl')
@@ -1190,14 +1107,14 @@ def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, ma
             cbm_output_2 = pickle.load(f)
         print("Loaded cbm_output_1 and cbm_output_2 from pickle files.")
     else:
-        cbm_output_1, cbm_output_2 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, obj_mode)
+        cbm_output_1, cbm_output_2 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, case_study, obj_mode)
         with open(pickle_file_1, 'wb') as f:
             pickle.dump(cbm_output_1, f)
         with open(pickle_file_2, 'wb') as f:
             pickle.dump(cbm_output_2, f)
         print("Saved cbm_output_1 and cbm_output_2 as pickle files.")
     
-    kpi_age(fm, case_study, obj_mode, scenario_name)
+    kpi_age_alt= kpi_age(fm, case_study, obj_mode, scenario_name)
     kpi_species(fm, case_study, obj_mode, scenario_name)
 
     # Create a folder for csv file outputs
@@ -1212,6 +1129,7 @@ def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, ma
 
     fm.reset()
 
+    # Run Base scenario
     # Define pickle file paths_base
     pickle_file_3 = os.path.join(pickle_folder_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_3.pkl')
     pickle_file_4 = os.path.join(pickle_folder_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_4.pkl')
@@ -1237,7 +1155,7 @@ def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, ma
         else:
             raise ValueError('Invalid case_study: %s' % case_study)
 
-        cbm_output_3, cbm_output_4 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, obj_mode)
+        cbm_output_3, cbm_output_4 = stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, case_study, obj_mode)
         
         # Save cbm_output_3 and cbm_output_4 as pickle
         with open(pickle_file_3, 'wb') as f:
@@ -1246,7 +1164,7 @@ def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, ma
             pickle.dump(cbm_output_4, f)
         print("Saved cbm_output_3 and cbm_output_4 as pickle files.")
 
-    kpi_age(fm, case_study, obj_mode, scenario_name)
+    kpi_age_base = kpi_age(fm, case_study, obj_mode, scenario_name)
     kpi_species(fm, case_study, obj_mode, scenario_name)
 
     # Save cbm_output_4 as CSV
@@ -1256,10 +1174,16 @@ def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, ma
     # print(cbm_output_4)
 
     # Plot scenarios
-    plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_steps, case_study, obj_mode, scenario_name)
+    plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_steps, case_study, obj_mode)
     
     # Scenario difference plot
-    dif_plot = scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps, case_study, obj_mode, scenario_name)
+    dif_plot = scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps, case_study, obj_mode)
+
+    compare_kpi_age(kpi_age_base, kpi_age_alt, case_study, obj_mode)
+
+
+
+
 
 
 def cbm_report(fm, cbm_output, biomass_pools, dom_pools, fluxes, gross_growth):
@@ -1720,7 +1644,106 @@ def compare_ws3_cbm_exactmatch(fm, cbm_output, disturbance_type_mapping, biomass
     return df_cbm, df_ws3
 
 
-def plugin_c_curves_both(fm, c_curves_p, c_curves_f, pools, fluxes):
+def plugin_c_curves_both(fm, c_curves_p, c_curves_f):
+    # Define Sum Carbon Pools and Sum Carbon Fluxes
+    biomass_pools = ['SoftwoodMerch','SoftwoodFoliage', 'SoftwoodOther', 'SoftwoodCoarseRoots','SoftwoodFineRoots',                        
+                     'HardwoodMerch', 'HardwoodFoliage', 'HardwoodOther', 'HardwoodCoarseRoots', 'HardwoodFineRoots']
+    dom_pools = ['AboveGroundVeryFastSoil', 'BelowGroundVeryFastSoil', 'AboveGroundFastSoil', 'BelowGroundFastSoil',
+                 'MediumSoil', 'AboveGroundSlowSoil', 'BelowGroundSlowSoil', 'SoftwoodStemSnag', 'SoftwoodBranchSnag',
+                 'HardwoodStemSnag', 'HardwoodBranchSnag']
+    all_fluxes = [
+        'DisturbanceCO2Production',
+        'DisturbanceCH4Production',
+        'DisturbanceCOProduction',
+        'DisturbanceBioCO2Emission',
+        'DisturbanceBioCH4Emission',
+        'DisturbanceBioCOEmission',
+        'DecayDOMCO2Emission',
+        'DisturbanceSoftProduction',
+        'DisturbanceHardProduction',
+        'DisturbanceDOMProduction',
+        'DeltaBiomass_AG',
+        'DeltaBiomass_BG',
+        'TurnoverMerchLitterInput',
+        'TurnoverFolLitterInput',
+        'TurnoverOthLitterInput',
+        'TurnoverCoarseLitterInput',
+        'TurnoverFineLitterInput',
+        'DecayVFastAGToAir',
+        'DecayVFastBGToAir',
+        'DecayFastAGToAir',
+        'DecayFastBGToAir',
+        'DecayMediumToAir',
+        'DecaySlowAGToAir',
+        'DecaySlowBGToAir',
+        'DecaySWStemSnagToAir',
+        'DecaySWBranchSnagToAir',
+        'DecayHWStemSnagToAir',
+        'DecayHWBranchSnagToAir',
+        'DisturbanceMerchToAir',
+        'DisturbanceFolToAir',
+        'DisturbanceOthToAir',
+        'DisturbanceCoarseToAir',
+        'DisturbanceFineToAir',
+        'DisturbanceDOMCO2Emission',
+        'DisturbanceDOMCH4Emission',
+        'DisturbanceDOMCOEmission',
+        'DisturbanceMerchLitterInput',
+        'DisturbanceFolLitterInput',
+        'DisturbanceOthLitterInput',
+        'DisturbanceCoarseLitterInput',
+        'DisturbanceFineLitterInput',
+        'DisturbanceVFastAGToAir',
+        'DisturbanceVFastBGToAir',
+        'DisturbanceFastAGToAir',
+        'DisturbanceFastBGToAir',
+        'DisturbanceMediumToAir',
+        'DisturbanceSlowAGToAir',
+        'DisturbanceSlowBGToAir',
+        'DisturbanceSWStemSnagToAir',
+        'DisturbanceSWBranchSnagToAir',
+        'DisturbanceHWStemSnagToAir',
+        'DisturbanceHWBranchSnagToAir'
+    ]
+    ecosystem_decay_emissions_pools = [
+        'DecayVFastAGToAir',
+        'DecayVFastBGToAir',
+        'DecayFastAGToAir',
+        'DecayFastBGToAir',
+        'DecayMediumToAir',
+        'DecaySlowAGToAir',
+        'DecaySlowBGToAir',
+        'DecaySWStemSnagToAir',
+        'DecaySWBranchSnagToAir',
+        'DecayHWStemSnagToAir',
+        'DecayHWBranchSnagToAir']
+    GrossGrowth_pools = [
+        'DeltaBiomass_AG',
+        'TurnoverMerchLitterInput',
+        'TurnoverFolLitterInput',
+        'TurnoverOthLitterInput',
+        'DeltaBiomass_BG',
+        'TurnoverCoarseLitterInput',
+        'TurnoverFineLitterInput']
+
+    ecosystem_pools = biomass_pools + dom_pools
+    fluxes = ecosystem_decay_emissions_pools
+    gross_growth = GrossGrowth_pools
+    sum_pools = ['ecosystem', 'biomass', 'DOM']  
+    
+    pools=sum_pools
+    fluxes=['net_emissions', 'total_emissions', 'gross_growth']
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     for dtype_key in fm.dtypes:
         dt = fm.dt(dtype_key)
         mask = ('?', '?', '?', '?', dtype_key[4], dtype_key[5])
@@ -2140,13 +2163,22 @@ def kpi_age(fm, case_study, obj_mode, scenario_name, base_path='.'):
         return "No matching set found."
     
     # Define old growth threshold in years
-    old_growth_threshold = 100
+    # old_growth_threshold = 100
     
     # Store old growth data
     old_growth_data = {0: {}, 10: {}}  # For time periods 0 and 10
     
     bin_edges = np.arange(0, 480, 20)
-    colors = ['blue', 'green', 'orange', 'purple']
+    colors = {
+        'Aspen': '#FF0000',
+        'Bal': '#FF8C00',
+        'Cedar': '#FFD700',
+        'Alder': '#00FF00',
+        'DougFir': '#00FFFF',
+        'Hem': '#1E90FF',
+        'Pine': '#9400D3',
+        'Spruce': '#FF00FF'
+    }  
     
     fig, axes = plt.subplots(1, 2, figsize=(14, 6))
     
@@ -2161,10 +2193,12 @@ def kpi_age(fm, case_study, obj_mode, scenario_name, base_path='.'):
             hist, _ = np.histogram(x_values, bins=bin_edges, weights=y_values)
             
             species = find_corresponding_species(theme3)
-            axes[idx].bar(bin_edges[:-1], hist, width=20, bottom=cumulative_hist, color=colors[i], edgecolor='black', alpha=0.7, label=f'Species {species}')
+            axes[idx].bar(bin_edges[:-1], hist, width=20, bottom=cumulative_hist, color=colors[species], edgecolor='black', alpha=0.7, label=f'Species {species}')
             
             # Calculate old growth area for this species
-            old_growth_area = sum(y for x, y in data.items() if x >= old_growth_threshold)
+            # old_growth_area = sum(y for x, y in data.items() if x >= old_growth_threshold)
+            # old_growth_data[time_period][species] = old_growth_data[time_period].get(species, 0) + old_growth_area
+            old_growth_area = fm.inventory(time_period, 'ogi', mask=f'? ? ? {theme3} ? ?')
             old_growth_data[time_period][species] = old_growth_data[time_period].get(species, 0) + old_growth_area
             
             cumulative_hist += hist
@@ -2192,7 +2226,7 @@ def kpi_age(fm, case_study, obj_mode, scenario_name, base_path='.'):
     old_growth_df['Difference'] = old_growth_df[10] - old_growth_df[0]
     
     # Print old growth data as a table
-    print(f"\nOld Growth (older than {old_growth_threshold} years old) Data (in hectares). \nNegative value indicates loss of old growth and positive value indicates gain of old growth.")
+    print(f"\nOld Growth Data (in hectares). \nNegative value indicates loss of old growth and positive value indicates gain of old growth.")
     print(old_growth_df)
     
     # Print conclusion about diversity change based on difference
@@ -2203,7 +2237,7 @@ def kpi_age(fm, case_study, obj_mode, scenario_name, base_path='.'):
     
     # Plot clustered column chart for old growth areas by species for each time period
     fig, ax = plt.subplots(figsize=(7, 6))
-    old_growth_df[[0, 10]].plot(kind='bar', color=['skyblue', 'salmon'], ax=ax)
+    old_growth_df[[0, 10]].plot(kind='bar', color=["#FF8C00", "#9400D3"], ax=ax)
     
     ax.set_title("Old Growth Area by Species (Period 0 vs Period 10)")
     ax.set_xlabel("Species")
@@ -2222,7 +2256,7 @@ def kpi_age(fm, case_study, obj_mode, scenario_name, base_path='.'):
     
     print(f"Clustered column plot saved to {clustered_chart_path}")
     
-    # return old_growth_df
+    return old_growth_df
 
 
 
@@ -2261,14 +2295,14 @@ def kpi_species(fm, case_study, obj_mode, scenario_name, base_path='.'):
     Spruce = ['S', 'SS', 'SW', 'SX', 'SE', 'SXW', 'SB', 'SX+AT']
 
     colors = {
-        'Aspen': 'lightblue',
-        'Bal': 'lightgreen',
-        'Cedar': 'orange',
-        'Alder': 'yellow',
-        'DougFir': 'red',
-        'Hem': 'purple',
-        'Pine': 'brown',
-        'Spruce': 'pink'
+        'Aspen': '#FF0000',
+        'Bal': '#FF8C00',
+        'Cedar': '#FFD700',
+        'Alder': '#00FF00',
+        'DougFir': '#00FFFF',
+        'Hem': '#1E90FF',
+        'Pine': '#9400D3',
+        'Spruce': '#FF00FF'
     }
 
     def find_corresponding_species(number):
