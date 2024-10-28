@@ -368,7 +368,7 @@ def plot_scenario_minemission(df):
 # Optimization
 ################################################
 
-def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=1, mask=None):
+def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=1, util=0.85, mask=None):
     """
     Compile objective function coefficient for total system carbon stock indicators (given ForestModel instance, 
     leaf-to-root-node path, and expression to evaluate).
@@ -390,16 +390,16 @@ def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, 
             result_hwp = fm.compile_product(t, 'totvol', d['acode'], [d['dtk']], d['age'], coeff=False) * wood_density * carbon_content/1000
         else:
             result_hwp = 0     
-        hwp_accu_wood  = hwp_accu_wood * (1-k_wood)**10 + result_hwp * proportion_solid_wood
-        hwp_accu_paper = hwp_accu_paper * (1-k_paper)**10 + result_hwp * (1- proportion_solid_wood) 
+        hwp_accu_wood  = hwp_accu_wood * (1-k_wood)**10 + result_hwp * util * proportion_solid_wood
+        hwp_accu_paper = hwp_accu_paper * (1-k_paper)**10 + result_hwp * util * (1- proportion_solid_wood) 
+        
         ecosystem = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
         result += hwp_accu_wood + hwp_accu_paper + ecosystem
 
     return result
 
 
-#Considering emissions for the newxt period
-# def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=1, half_life_paper=2, proportion_solid_wood=1, displacement_factor=2 , mask=None):
+# def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=0.8, displacement_factor=2 , mask=None):
 #     """
 #     Compile objective function coefficient for total system carbon stock indicators (given ForestModel instance, 
 #     leaf-to-root-node path, and expression to evaluate).
@@ -417,9 +417,9 @@ def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, 
 #     hwp_accu_wood = 0.
 #     hwp_accu_paper = 0.
 #     ecosystem = 0.
-#     clt_percentage = 1.24
+#     clt_percentage = 0.5
 #     credibility = 1.
-#     clt_conversion_rate = 1.
+#     clt_conversion_rate = 1.24
 #     co2_concrete_manu_accu = 0.
 #     co2_concrete_landfill = 0.
 #     co2_concrete_manu_factor = 298. #kg/m3
@@ -436,23 +436,19 @@ def cmp_c_ss(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, 
 #         else:
 #             result_hwp = 0.  
 #             concrete_volume = 0.
-        
-#         hwp_accu_wood  = hwp_accu_wood * (1-k_wood)**10 
-#         hwp_accu_paper = hwp_accu_paper * (1-k_paper)**10 
+#         hwp_accu_wood  = hwp_accu_wood * (1-k_wood)**10 + result_hwp * proportion_solid_wood
+#         hwp_accu_paper = hwp_accu_paper * (1-k_paper)**10 + result_hwp * (1- proportion_solid_wood) 
 #         hwp_wood_emission  =  (hwp_accu_wood * (1- (1-k_wood)**10) * wood_density * carbon_content * 44/12) /1000.
 #         hwp_paper_emission =  (hwp_accu_paper * (1- (1-k_paper)**10) * wood_density * carbon_content * 44/12 ) /1000.
-#         hwp_accu_wood  = hwp_accu_wood + result_hwp * proportion_solid_wood
-#         hwp_accu_paper = hwp_accu_paper + result_hwp * (1- proportion_solid_wood) 
 #         net_emissions = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
 #         co2_concrete_manu_accu += concrete_volume * co2_concrete_manu_factor / 1000.
 #         co2_concrete_landfill_accu += concrete_volume * co2_concrete_landfill_factor / 1000.
 #         result += hwp_wood_emission + hwp_paper_emission + net_emissions - co2_concrete_manu_accu - co2_concrete_landfill_accu
-#         # result += hwp_wood_emission + hwp_paper_emission + net_emissions 
 
 #     return result
 
-# Considering emissions from the first period
-def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=0.8, displacement_factor=2 , mask=None):
+
+def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=0.8, displacement_factor=2, util=0.85, mask=None):
     """
     Compile objective function coefficient for total system carbon stock indicators (given ForestModel instance, 
     leaf-to-root-node path, and expression to evaluate).
@@ -466,6 +462,7 @@ def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, 
     result = 0.
     hwp_wood_emission = 0.
     hwp_paper_emission = 0.
+    hwps_residue_pool = 0.
     hwp_accu_wood = 0.
     hwp_accu_wood = 0.
     hwp_accu_paper = 0.
@@ -489,15 +486,24 @@ def cmp_c_se(fm, path, expr, yname, half_life_solid_wood=30, half_life_paper=2, 
         else:
             result_hwp = 0.  
             concrete_volume = 0.
-        hwp_accu_wood  = hwp_accu_wood * (1-k_wood)**10 + result_hwp * proportion_solid_wood
-        hwp_accu_paper = hwp_accu_paper * (1-k_paper)**10 + result_hwp * (1- proportion_solid_wood) 
-        hwp_wood_emission  =  (hwp_accu_wood * (1- (1-k_wood)**10) * wood_density * carbon_content * 44/12) /1000.
-        hwp_paper_emission =  (hwp_accu_paper * (1- (1-k_paper)**10) * wood_density * carbon_content * 44/12 ) /1000.
+        hwp_accu_wood  = hwp_accu_wood * (1-k_wood)**10 + result_hwp  * util * proportion_solid_wood
+        hwp_accu_paper = hwp_accu_paper * (1-k_paper)**10 + result_hwp * util * (1- proportion_solid_wood) 
+        hwps_residue_pool = result_hwp * (1.0 - util)
+
+
+        
+        hwp_wood_emission  =  (hwp_accu_wood * (1- (1-k_wood)**10)  * 44/12) /1000.
+        hwp_paper_emission =  (hwp_accu_paper * (1- (1-k_paper)**10) * 44/12 ) /1000.
+        hwps_residue_emission = (hwps_residue_pool * 44/12) /1000.
+
+
+        
         net_emissions = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
-        co2_concrete_manu_accu += concrete_volume * co2_concrete_manu_factor / 1000.
-        co2_concrete_landfill_accu += concrete_volume * co2_concrete_landfill_factor / 1000.
-        result += hwp_wood_emission + hwp_paper_emission + net_emissions - co2_concrete_manu_accu - co2_concrete_landfill_accu
-        # result += hwp_wood_emission + hwp_paper_emission + net_emissions 
+        
+        co2_concrete_manu_accu += concrete_volume * util * co2_concrete_manu_factor / 1000.
+        co2_concrete_landfill_accu += concrete_volume * util * co2_concrete_landfill_factor / 1000.
+        
+        result += hwp_wood_emission + hwp_paper_emission + net_emissions + hwps_residue_emission - co2_concrete_manu_accu - co2_concrete_landfill_accu
 
     return result
 
@@ -781,9 +787,9 @@ def run_scenario(fm, obj_mode, scenario_name='base', solver=ws3.opt.SOLVER_PULP)
     elif scenario_name == 'no_cons': 
         # no_cons scenario : 
         print('running no constraints scenario')
-        # cflw_ha = ({p:0.05 for p in fm.periods}, 1)
-        # cflw_hv = ({p:0.05 for p in fm.periods}, 1)
-        # cgen_ha = {'lb':{1:0}, 'ub':{1:0}}
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_ha = {'lb':{1:0}, 'ub':{1:0}}
     # Golden Bear scenarios
     elif scenario_name == 'bau_gldbr': 
         # Business as usual scenario for Golden Bear mining site: 
@@ -2356,3 +2362,38 @@ def kpi_species(fm, case_study, obj_mode, scenario_name, base_path='.'):
     plt.close()
     
     print(f"Pie Charts for Time Periods 0 and 10 saved to {file_path}")
+
+
+################################################################
+#Old Growth Inventory 
+################################################################
+def bootstrap_ogi(fm, tvy_name='totvol', ra1_type='cmai', ra2_type='cyld', rc1=[1., 0.], rc2=[1., 0.], max_y=1.,
+                  mask=None, yname='ogi', period_length=10):
+    """
+    Adds a yield component to each development type expressing "old-growthedness".
+    f(x) = 0 on the interval [0, ra1*rc1[0]+rc1[1]].
+    f(x) is linearly interpolated on the interval [ra2*rc2[0]+rc2[1], ra1*rc1[0]+rc1[1]]
+    f(x) = 1 on the interval [ra2*rc2[0]+rc2[1], inf].
+    ra1 defaults to age at which total volume MAI curve culminates.
+    ra2 defaults to age at which total volume curve culminates.
+    """
+    mask = mask if mask else ('?', '?', '?', '?', '?', '?')
+    fm.ynames.add(yname)
+    for dtk in fm.unmask(mask):
+        dt = fm.dtypes[dtk]
+        yldca = dt.ycomp(tvy_name).ytp().lookup(0)
+        maica = dt.ycomp(tvy_name).mai().ytp().lookup(0)
+        ra1 = maica if ra1_type=='cmai' else yldca
+        ra2 = maica if ra2_type=='cmai' else yldca
+        points = [(0, 0.), 
+                  (int(ra1*rc1[0]+rc1[1]), 0.), 
+                  (int(ra2*rc2[0]+rc2[1]), max_y),
+                  (fm.max_age, max_y)]
+        #print(dtk, points)
+        c = fm.register_curve(ws3.core.Curve(yname, points=points, type='a', is_volume=False, 
+                                             xmax=fm.max_age, period_length=period_length))
+        #print(dtk, c.points())
+        #assert False
+        _mask = (mask[0], '?', dtk[2], dtk[3], dtk[4], dtk[5] )
+        fm.yields.append((_mask, 'a', [(yname, c)]))
+        dt.add_ycomp('a', yname, c)
