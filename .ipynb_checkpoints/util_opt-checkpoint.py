@@ -666,7 +666,79 @@ def run_scenario(fm, hwp_pool_effect_value, displacement_effect, release_immedia
         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
         # cgen_ha = {'lb':{1:0}, 'ub':{1:0}}
-   
+ 
+    # Red Chris Scenarios
+    elif scenario_name == 'bau_redchrs': 
+        # Business as usual scenario for the Red Chris mining site: 
+        print('running business as usual scenario for the Red Chris mining site,')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:aac_red}, 'ub':{1:aac_red}} # Equal with Annual Allowable Cut
+        cgen_gs = {'lb':{10:initial_gs_red*0.9}, 'ub':{10:initial_gs_red*1000}} #Not less than 90% of initial growing stock
+    elif scenario_name == 'redchrs_AAC_90%': 
+        # Alternative scenario for the Red Chris mining site (90%_AAC): 
+        print('running the scenario for the Red Chris mining site (90%_AAC),')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.9*aac_red}, 'ub':{1:0.9*aac_red+1}} # Equal with Annual Allowable Cut
+        cgen_gs = {'lb':{10:initial_gs_red*0.9}, 'ub':{10:initial_gs_red*1000}} #Not less than 90% of initial growing stock
+    elif scenario_name == 'redchrs_AAC_80%': 
+        # Alternative scenario for the Red Chris mining site (80%_AAC): 
+        print('running the scenario for the Red Chris mining site (80%_AAC),')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.8*aac_red}, 'ub':{1:0.8*aac_red+1}} # Equal with Annual Allowable Cut
+        cgen_gs = {'lb':{10:initial_gs_red*0.9}, 'ub':{10:initial_gs_red*1000}} #Not less than 90% of initial growing stock
+    elif scenario_name == 'redchrs_AAC_70%': 
+        # Alternative scenario for the Red Chris mining site (70%_AAC): 
+        print('running the scenario for the Red Chris mining site (70%_AAC),')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.7*aac_red}, 'ub':{1:0.7*aac_red+1}} # Equal with Annual Allowable Cut
+        cgen_gs = {'lb':{10:initial_gs_red*0.9}, 'ub':{10:initial_gs_red*1000}} #Not less than 90% of initial growing stock
+    elif scenario_name == 'redchrs_AAC_60%': 
+        # Alternative scenario for the Red Chris mining site (60%_AAC): 
+        print('running the scenario for the Red Chris mining site (60%_AAC),')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.6*aac_red}, 'ub':{1:0.6*aac_red+1}} # Equal with Annual Allowable Cut
+        cgen_gs = {'lb':{10:initial_gs_red*0.9}, 'ub':{10:initial_gs_red*1000}} #Not less than 90% of initial growing stock
+    elif scenario_name == 'redchrs_AAC_50%': 
+        # Alternative scenario for the Red Chris mining site (50%_AAC): 
+        print('running the scenario for the Red Chris mining site (50%_AAC),')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.5*aac_red}, 'ub':{1:0.5*aac_red+1}} # Equal with Annual Allowable Cut
+        cgen_gs = {'lb':{10:initial_gs_red*0.9}, 'ub':{10:initial_gs_red*1000}} #Not less than 90% of initial growing stock
+    elif scenario_name == 'redchrs_AAC_40%': 
+        # Alternative scenario for the Red Chris mining site (40%_AAC): 
+        print('running the scenario for the Red Chris mining site (40%_AAC),')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.4*aac_red}, 'ub':{1:0.4*aac_red+1}} # Equal with Annual Allowable Cut
+        cgen_gs = {'lb':{10:initial_gs_red*0.9}, 'ub':{10:initial_gs_red*1000}} #Not less than 90% of initial growing stock
+    elif scenario_name == 'redchrs_AAC_30%': 
+        # Alternative scenario for the Red Chris mining site (30%_AAC): 
+        print('running the scenario for the Red Chris mining site (30%_AAC),')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.3*aac_red}, 'ub':{1:0.3*aac_red+1}} # Equal with Annual Allowable Cut
+        cgen_gs = {'lb':{10:initial_gs_red*0.9}, 'ub':{10:initial_gs_red*1000}} #Not less than 90% of initial growing stock
+    elif scenario_name == 'redchrs_AAC_20%': 
+        # Alternative scenario for the Red Chris mining site (20%_AAC): 
+        print('running the scenario for the Red Chris mining site (20%_AAC),')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.2*aac_red}, 'ub':{1:0.2*aac_red+1}} # Equal with Annual Allowable Cut
+        cgen_gs = {'lb':{10:initial_gs_red*0.9}, 'ub':{10:initial_gs_red*1000}} #Not less than 90% of initial growing stock
+    elif scenario_name == 'redchrs_AAC_10%': 
+        # Alternative scenario for the Red Chris mining site (10%_AAC): 
+        print('running the scenario for the Red Chris mining site (10%_AAC),')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.1*aac_red}, 'ub':{1:0.1*aac_red+1}} # Equal with Annual Allowable Cut
+        cgen_gs = {'lb':{10:initial_gs_red*0.9}, 'ub':{10:initial_gs_red*1000}} #Not less than 90% of initial growing stock
+  
     # Golden Bear scenarios
     elif scenario_name == 'bau_gldbr': 
         # Business as usual scenario for Golden Bear mining site: 
@@ -674,36 +746,70 @@ def run_scenario(fm, hwp_pool_effect_value, displacement_effect, release_immedia
         cgen_hv = {'lb':{1:aac_gold}, 'ub':{1:aac_gold}}
         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
-        
-
-    # Red Chris Scenarios
-    elif scenario_name == 'bau_redchrs': 
-        # Business as usual scenario for the Red Chris mining site: 
-        print('running business as usual scenario for the Red Chris mining site,')
-        cgen_hv = {'lb':{1:aac_red}, 'ub':{1:aac_red}} 
+        cgen_gs = {'lb':{10:initial_gs_gold*0.9}, 'ub':{10:initial_gs_red*2}} #Not less than 90% of initial growing stock
+    elif scenario_name == 'gldbr_AAC_90%': 
+        # Alternative scenario for the Golden Bear mining site (90%_AAC): 
+        print('running the scenario for the Golden Bear mining site (90%_AAC),')
         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
-        cgen_gs = {'lb':{10:initial_gs_red*0.9}, 'ub':{10:initial_gs_red*2}} #Not less than 90% of initial growing stock
-
-
-    elif scenario_name == 'redchrs_gs_hv_ha_100': 
-        # BAU scenario, plus harvest area general constraints 100%
-        print('running alternative scenario with harvest area constraints (100%)')
+        cgen_hv = {'lb':{1:0.9*aac_gold}, 'ub':{1:0.9*aac_gold+1}} # Equal with Annual Allowable Cut
+        cgen_gs = {'lb':{10:initial_gs_gold*0.9}, 'ub':{10:initial_gs_gold*1000}} #Not less than 90% of initial growing stock
+    elif scenario_name == 'gldbr_AAC_80%': 
+        # Alternative scenario for the Golden Bear mining site (80%_AAC): 
+        print('running the scenario for the Golden Bear mining site (80%_AAC),')
         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
-        cgen_ha = {'lb':{1:0}, 'ub':{1:initial_inv_red*1}}
-        cgen_hv = {'lb':{1:0.9*aac_red}, 'ub':{1:aac_red}} # at least 90% of aac
-        cgen_gs = {'lb':{10:initial_gs_red}, 'ub':{10:initial_gs_red*10}} #Not less than 90% of initial growing stock at the end
-
-    elif scenario_name == 'redchrs_gs_hv_ha_90': 
-        # BAU scenario, plus harvest area general constraints 100%
-        print('running alternative scenario with harvest area constraints (90%)')
+        cgen_hv = {'lb':{1:0.8*aac_gold}, 'ub':{1:0.8*aac_gold+1}} # Equal with Annual Allowable Cut
+        cgen_gs = {'lb':{10:initial_gs_gold*0.9}, 'ub':{10:initial_gs_gold*1000}} #Not less than 90% of initial growing stock    
+    elif scenario_name == 'gldbr_AAC_70%': 
+        # Alternative scenario for the Golden Bear mining site (70%_AAC): 
+        print('running the scenario for the Golden Bear mining site (70%_AAC),')
         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
-        cgen_ha = {'lb':{1:0}, 'ub':{1:initial_inv_red*0.9}}
-        cgen_hv = {'lb':{1:0.9*aac_red}, 'ub':{1:aac_red}} # at least 90% of aac
-        cgen_gs = {'lb':{10:initial_gs_red}, 'ub':{10:initial_gs_red*10}} #Not less than 90% of initial growing stock at the end
-
+        cgen_hv = {'lb':{1:0.7*aac_gold}, 'ub':{1:0.7*aac_gold+1}} # Equal with Annual Allowable Cut
+        cgen_gs = {'lb':{10:initial_gs_gold*0.9}, 'ub':{10:initial_gs_gold*1000}} #Not less than 90% of initial growing stock     
+    elif scenario_name == 'gldbr_AAC_60%': 
+        # Alternative scenario for the Golden Bear mining site (60%_AAC): 
+        print('running the scenario for the Golden Bear mining site (60%_AAC),')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.6*aac_gold}, 'ub':{1:0.6*aac_gold+1}} # Equal with Annual Allowable Cut
+        cgen_gs = {'lb':{10:initial_gs_gold*0.9}, 'ub':{10:initial_gs_gold*1000}} #Not less than 90% of initial growing stock 
+    elif scenario_name == 'gldbr_AAC_50%': 
+        # Alternative scenario for the Golden Bear mining site (50%_AAC): 
+        print('running the scenario for the Golden Bear mining site (50%_AAC),')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.5*aac_gold}, 'ub':{1:0.5*aac_gold+1}} # Equal with Annual Allowable Cut
+        cgen_gs = {'lb':{10:initial_gs_gold*0.9}, 'ub':{10:initial_gs_gold*1000}} #Not less than 90% of initial growing stock     
+    elif scenario_name == 'gldbr_AAC_40%': 
+        # Alternative scenario for the Golden Bear mining site (40%_AAC): 
+        print('running the scenario for the Golden Bear mining site (40%_AAC),')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.4*aac_gold}, 'ub':{1:0.4*aac_gold+1}} # Equal with Annual Allowable Cut
+        cgen_gs = {'lb':{10:initial_gs_gold*0.9}, 'ub':{10:initial_gs_gold*1000}} #Not less than 90% of initial growing stock     
+    elif scenario_name == 'gldbr_AAC_30%': 
+        # Alternative scenario for the Golden Bear mining site (30%_AAC): 
+        print('running the scenario for the Golden Bear mining site (30%_AAC),')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.3*aac_gold}, 'ub':{1:0.3*aac_gold+1}} # Equal with Annual Allowable Cut
+        cgen_gs = {'lb':{10:initial_gs_gold*0.9}, 'ub':{10:initial_gs_gold*1000}} #Not less than 90% of initial growing stock     
+    elif scenario_name == 'gldbr_AAC_20%': 
+        # Alternative scenario for the Golden Bear mining site (20%_AAC): 
+        print('running the scenario for the Golden Bear mining site (20%_AAC),')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.2*aac_gold}, 'ub':{1:0.2*aac_gold+1}} # Equal with Annual Allowable Cut
+        cgen_gs = {'lb':{10:initial_gs_gold*0.9}, 'ub':{10:initial_gs_gold*1000}} #Not less than 90% of initial growing stock     
+    elif scenario_name == 'gldbr_AAC_10%': 
+        # Alternative scenario for the Golden Bear mining site (10%_AAC): 
+        print('running the scenario for the Golden Bear mining site (10%_AAC),')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.1*aac_gold}, 'ub':{1:0.1*aac_gold+1}} # Equal with Annual Allowable Cut
+        cgen_gs = {'lb':{10:initial_gs_gold*0.9}, 'ub':{10:initial_gs_gold*1000}} #Not less than 90% of initial growing stock 
     
     # Equity Silver scenarios
     elif scenario_name == 'bau_eqtslvr': 
@@ -712,36 +818,20 @@ def run_scenario(fm, hwp_pool_effect_value, displacement_effect, release_immedia
         cgen_hv = {'lb':{1:0.7*aac_equity}, 'ub':{1:0.7*aac_equity}} 
         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
-        
+    elif scenario_name == 'eqtslvr_AAC_90%': 
+        # Alternative scenario for the Equity Silver mining site (90%_AAC): 
+        print('running the scenario for the Equity Silver mining site (90%_AAC),')
+        cgen_hv = {'lb':{1:0.7*aac_equity}, 'ub':{1:0.7*aac_equity}} 
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+     # elif scenario_name == 'gldbr_AAC_90%': 
+     #    # Alternative scenario for the Golden Bear mining site (90%_AAC): 
+     #    print('running the scenario for the Golden Bear mining site (90%_AAC),')
+     #    cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+     #    cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+     #    cgen_hv = {'lb':{1:0.9*aac_gold}, 'ub':{1:0.9*aac_gold+1}} # Equal with Annual Allowable Cut
+     #    cgen_gs = {'lb':{10:initial_gs_gold*0.9}, 'ub':{10:initial_gs_gold*1000}} #Not less than 90% of initial growing stock
     
-
-    
-    elif scenario_name == 'base-cgen_ha_90%': 
-        # Base scenario, plus harvest area general constraints 90%
-        print('running base scenario plus harvest area constraints')
-        cgen_ha = {'lb':{1:initial_inv*0.1}, 'ub':{1:initial_inv*0.9}}   
-    elif scenario_name == 'base-cgen_ha_80%': 
-        # Base scenario, plus harvest area general constraints 80%
-        print('running base scenario plus harvest area constraints')
-        cgen_ha = {'lb':{1:initial_inv*0.1}, 'ub':{1:initial_inv*0.8}}
-    elif scenario_name == 'base-cgen_ha_0%': 
-        # Base scenario, plus harvest area general constraints 70%
-        print('running base scenario plus harvest area constraints 0%')
-        cgen_ha = {'lb':{1:initial_inv*1}, 'ub':{1:initial_inv*1}} 
-    elif scenario_name == 'base-cgen_hv': 
-        # Base scenario, plus harvest volume general constraints
-        print('running base scenario plus harvest volume constraints')
-        cgen_hv = {'lb':{1:100000.}, 'ub':{1:100100.}}    
-    elif scenario_name == 'base-cgen_gs': 
-        # Base scenario, plus growing stock general constraints
-        print('running base scenario plus growing stock constraints')
-        cgen_gs = {'lb':{10:10000000.}, 'ub':{10:10000100.}}
-    elif scenario_name == 'base-cgen_gs_ha_100': 
-        # Base scenario, plus growing stock general constraints
-        print('running maxmizie harvest scenario scenario plus growing stock constraints plus harvest area constraints 100%')
-        cgen_gs = {'lb':{x:initial_gs*0.9 for x in range(1,11)}, 'ub':{x:initial_gs*100 for x in range(1,11)}} #Not less than 90% of initial growing stock
-        # cgen_hv = {'lb':{20:AAC-1}, 'ub':{20:AAC}} #Achieve the Annual Allowable Cut
-        cgen_ha = {'lb':{1:initial_inv*0.1}, 'ub':{1:initial_inv*1}} 
     else:
         assert False # bad scenario name
     
