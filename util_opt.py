@@ -655,12 +655,12 @@ def run_scenario(fm, hwp_pool_effect_value, displacement_effect, release_immedia
     cgen_hv = {}
     cgen_gs = {}
 
-    if scenario_name == 'test': 
+    if scenario_name == 'no_cons': 
         # test scenario : 
         print('running test scenario')
-        cgen_hv = {'lb':{1:1}, 'ub':{1:200}}
+        # cgen_hv = {'lb':{1:1}, 'ub':{1:200}}
     
-    elif scenario_name == 'no_cons': 
+    elif scenario_name == 'evenflow_cons': 
         # no_cons scenario : 
         print('running no constraints scenario')
         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
@@ -815,23 +815,73 @@ def run_scenario(fm, hwp_pool_effect_value, displacement_effect, release_immedia
     elif scenario_name == 'bau_eqtslvr': 
         # Business as usual scenario for the Equity Silver mining site: 
         print('running business as usual scenario for the Equity Silver mining site')
-        cgen_hv = {'lb':{1:0.7*aac_equity}, 'ub':{1:0.7*aac_equity}} 
         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.7*aac_equity}, 'ub':{1:0.7*aac_equity}} 
+        cgen_gs = {'lb':{10:initial_gs_equit*0.9}, 'ub':{10:initial_gs_equit*1000}} #Not less than 90% of initial growing stock
     elif scenario_name == 'eqtslvr_AAC_90%': 
         # Alternative scenario for the Equity Silver mining site (90%_AAC): 
         print('running the scenario for the Equity Silver mining site (90%_AAC),')
-        cgen_hv = {'lb':{1:0.7*aac_equity}, 'ub':{1:0.7*aac_equity}} 
         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
-     # elif scenario_name == 'gldbr_AAC_90%': 
-     #    # Alternative scenario for the Golden Bear mining site (90%_AAC): 
-     #    print('running the scenario for the Golden Bear mining site (90%_AAC),')
-     #    cflw_ha = ({p:0.05 for p in fm.periods}, 1)
-     #    cflw_hv = ({p:0.05 for p in fm.periods}, 1)
-     #    cgen_hv = {'lb':{1:0.9*aac_gold}, 'ub':{1:0.9*aac_gold+1}} # Equal with Annual Allowable Cut
-     #    cgen_gs = {'lb':{10:initial_gs_gold*0.9}, 'ub':{10:initial_gs_gold*1000}} #Not less than 90% of initial growing stock
-    
+        cgen_hv = {'lb':{1:0.9*0.7*aac_equity}, 'ub':{1:0.9*0.7*aac_equity}} 
+        cgen_gs = {'lb':{10:initial_gs_equit*0.9}, 'ub':{10:initial_gs_equit*1000}} #Not less than 90% of initial growing stock
+    elif scenario_name == 'eqtslvr_AAC_80%': 
+        # Alternative scenario for the Equity Silver mining site (80%_AAC): 
+        print('running the scenario for the Equity Silver mining site (80%_AAC),')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.8*0.7*aac_equity}, 'ub':{1:0.8*0.7*aac_equity}} 
+        cgen_gs = {'lb':{10:initial_gs_equit*0.9}, 'ub':{10:initial_gs_equit*1000}} #Not less than 90% of initial growing stock    
+    elif scenario_name == 'eqtslvr_AAC_70%': 
+        # Alternative scenario for the Equity Silver mining site (70%_AAC): 
+        print('running the scenario for the Equity Silver mining site (70%_AAC),')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.7*0.7*aac_equity}, 'ub':{1:0.7*0.7*aac_equity}} 
+        cgen_gs = {'lb':{10:initial_gs_equit*0.9}, 'ub':{10:initial_gs_equit*1000}} #Not less than 90% of initial growing stock   
+    elif scenario_name == 'eqtslvr_AAC_60%': 
+        # Alternative scenario for the Equity Silver mining site (60%_AAC): 
+        print('running the scenario for the Equity Silver mining site (60%_AAC),')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.6*0.7*aac_equity}, 'ub':{1:0.6*0.7*aac_equity}} 
+        cgen_gs = {'lb':{10:initial_gs_equit*0.9}, 'ub':{10:initial_gs_equit*1000}} #Not less than 90% of initial growing stock           
+    elif scenario_name == 'eqtslvr_AAC_50%': 
+        # Alternative scenario for the Equity Silver mining site (50%_AAC): 
+        print('running the scenario for the Equity Silver mining site (50%_AAC),')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.5*0.7*aac_equity}, 'ub':{1:0.5*0.7*aac_equity}} 
+        cgen_gs = {'lb':{10:initial_gs_equit*0.9}, 'ub':{10:initial_gs_equit*1000}} #Not less than 90% of initial growing stock   
+    elif scenario_name == 'eqtslvr_AAC_40%': 
+        # Alternative scenario for the Equity Silver mining site (40%_AAC): 
+        print('running the scenario for the Equity Silver mining site (40%_AAC),')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.4*0.7*aac_equity}, 'ub':{1:0.4*0.7*aac_equity}} 
+        cgen_gs = {'lb':{10:initial_gs_equit*0.9}, 'ub':{10:initial_gs_equit*1000}} #Not less than 90% of initial growing stock   
+    elif scenario_name == 'eqtslvr_AAC_30%': 
+        # Alternative scenario for the Equity Silver mining site (30%_AAC): 
+        print('running the scenario for the Equity Silver mining site (30%_AAC),')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.3*0.7*aac_equity}, 'ub':{1:0.3*0.7*aac_equity}} 
+        cgen_gs = {'lb':{10:initial_gs_equit*0.9}, 'ub':{10:initial_gs_equit*1000}} #Not less than 90% of initial growing stock   
+    elif scenario_name == 'eqtslvr_AAC_20%': 
+        # Alternative scenario for the Equity Silver mining site (20%_AAC): 
+        print('running the scenario for the Equity Silver mining site (20%_AAC),')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.2*0.7*aac_equity}, 'ub':{1:0.2*0.7*aac_equity}} 
+        cgen_gs = {'lb':{10:initial_gs_equit*0.9}, 'ub':{10:initial_gs_equit*1000}} #Not less than 90% of initial growing stock       
+    elif scenario_name == 'eqtslvr_AAC_10%': 
+        # Alternative scenario for the Equity Silver mining site (10%_AAC): 
+        print('running the scenario for the Equity Silver mining site (10%_AAC),')
+        cflw_ha = ({p:0.05 for p in fm.periods}, 1)
+        cflw_hv = ({p:0.05 for p in fm.periods}, 1)
+        cgen_hv = {'lb':{1:0.1*0.7*aac_equity}, 'ub':{1:0.1*0.7*aac_equity}} 
+        cgen_gs = {'lb':{10:initial_gs_equit*0.9}, 'ub':{10:initial_gs_equit*1000}} #Not less than 90% of initial growing stock  
     else:
         assert False # bad scenario name
     
