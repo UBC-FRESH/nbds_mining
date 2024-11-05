@@ -221,7 +221,7 @@ def emission_concrete_landfill(fm, product_coefficients, clt_percentage, credibi
     return df_emission_concrete_landfill
 ################################################
 
-def compile_scenario(fm):
+def compile_scenario(fm, case_study, obj_mode, scenario_name):
     oha = [fm.compile_product(period, '1.', acode='harvest') for period in fm.periods]
     ohv = [fm.compile_product(period, 'totvol * 0.85', acode='harvest') for period in fm.periods]
     ogs = [fm.inventory(period, 'totvol') for period in fm.periods]
@@ -230,6 +230,14 @@ def compile_scenario(fm):
             'ohv':ohv, 
             'ogs':ogs}
     df = pd.DataFrame(data)
+
+    csv_folder_path = os.path.join('./outputs/csv', case_study)
+    if not os.path.exists(csv_folder_path):
+        os.makedirs(csv_folder_path)
+    
+    csv_file_path = os.path.join(csv_folder_path, f'{case_study}_{obj_mode}_{scenario_name}_compile_scenario.csv')
+    df.to_csv(csv_file_path, index=False)
+    
     return df
 
 
@@ -280,7 +288,7 @@ def plot_results(fm):
     return fig, ax, df
 
 
-def compile_scenario_maxstock(fm):
+def compile_scenario_maxstock(fm, case_study, obj_mode, scenario_name):
     oha = [fm.compile_product(period, '1.', acode='harvest') for period in fm.periods]
     ohv = [fm.compile_product(period, 'totvol * 0.85', acode='harvest') for period in fm.periods]
     ogs = [fm.inventory(period, 'totvol') for period in fm.periods]
@@ -293,6 +301,15 @@ def compile_scenario_maxstock(fm):
             'ocp':ocp,
             'ocf':ocf}
     df = pd.DataFrame(data)
+
+
+    csv_folder_path = os.path.join('./outputs/csv', case_study)
+    if not os.path.exists(csv_folder_path):
+        os.makedirs(csv_folder_path)
+    
+    csv_file_path = os.path.join(csv_folder_path, f'{case_study}_{obj_mode}_{scenario_name}_compile_scenario_maxstock.csv')
+    df.to_csv(csv_file_path, index=False)
+    
     return df
 
 
@@ -350,7 +367,7 @@ def plot_scenario_maxstock(df, case_study, obj_mode, scenario_name):
     return fig, ax
 
 
-def compile_scenario_minemission(fm):
+def compile_scenario_minemission(fm, case_study, obj_mode, scenario_name):
     oha = [fm.compile_product(period, '1.', acode='harvest') for period in fm.periods]
     ohv = [fm.compile_product(period, 'totvol * 0.85', acode='harvest') for period in fm.periods]
     ogs = [fm.inventory(period, 'totvol') for period in fm.periods]
@@ -363,6 +380,14 @@ def compile_scenario_minemission(fm):
             'ocp':ocp,
             'ocf':ocf}
     df = pd.DataFrame(data)
+
+    csv_folder_path = os.path.join('./outputs/csv', case_study)
+    if not os.path.exists(csv_folder_path):
+        os.makedirs(csv_folder_path)
+    
+    csv_file_path = os.path.join(csv_folder_path, f'{case_study}_{obj_mode}_{scenario_name}_compile_scenario_minemission.csv')
+    df.to_csv(csv_file_path, index=False)
+    
     return df
 
 
@@ -426,7 +451,7 @@ def plot_scenario_minemission(df, case_study, obj_mode, scenario_name):
 # Optimization
 ################################################
 
-def cmp_c_ss(fm, path, hwp_pool_effect_value, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=1, util=0.85, mask=None):
+def cmp_c_ss(fm, path, hwp_pool_effect_value, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=0.8, util=0.85, mask=None):
     """
     Compile objective function coefficient for total system carbon stock indicators (given ForestModel instance, 
     leaf-to-root-node path, and expression to evaluate).
@@ -459,9 +484,9 @@ def cmp_c_ss(fm, path, hwp_pool_effect_value, expr, yname, half_life_solid_wood=
 
 
 
-def cmp_c_se(fm, path, hwp_pool_effect_value, displacement_effect, release_immediately_value, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=0.8, displacement_factor=2, util=0.85, mask=None):
+def cmp_c_se(fm, path, clt_percentage, hwp_pool_effect_value, displacement_effect, release_immediately_value, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=0.8, util=0.85, mask=None):
     """
-    Compile objective function coefficient for total system carbon stock indicators (given ForestModel instance, 
+    Compile objective function coefficient for total system emission indicators (given ForestModel instance, 
     leaf-to-root-node path, and expression to evaluate).
     """
     k_wood = math.log(2) / half_life_solid_wood  # Decay rate for solid wood products (30-year half-life)
@@ -577,7 +602,7 @@ def cmp_c_ci(fm, path, yname, mask=None): # product, named actions
     return result
 
 
-def gen_scenario(fm, hwp_pool_effect_value=1.0, displacement_effect=1.0, release_immediately_value=0., name='base', util=0.85, harvest_acode='harvest',
+def gen_scenario(fm, clt_percentage=1.0,hwp_pool_effect_value=1.0, displacement_effect=1.0, release_immediately_value=0., name='base', util=0.85, harvest_acode='harvest',
                  cflw_ha={}, cflw_hv={}, 
                  cgen_ha={}, cgen_hv={}, cgen_gs={}, 
                  tvy_name='totvol', cp_name='ecosystem', ce_name='net_emissions', obj_mode='max_hv', mask=None):
@@ -609,7 +634,7 @@ def gen_scenario(fm, hwp_pool_effect_value=1.0, displacement_effect=1.0, release
     elif obj_mode == 'max_st':
         coeff_funcs['z'] = partial(cmp_c_ss, hwp_pool_effect_value=hwp_pool_effect_value, expr=zexpr, yname=cp_name) # define objective function coefficient function for total system carbon stock
     elif obj_mode == 'min_em':
-        coeff_funcs['z'] = partial(cmp_c_se, hwp_pool_effect_value=hwp_pool_effect_value, displacement_effect=displacement_effect, release_immediately_value=release_immediately_value,expr=zexpr, yname=ce_name) # define objective function coefficient function for total system emission
+        coeff_funcs['z'] = partial(cmp_c_se, clt_percentage=clt_percentage, hwp_pool_effect_value=hwp_pool_effect_value, displacement_effect=displacement_effect, release_immediately_value=release_immediately_value,expr=zexpr, yname=ce_name) # define objective function coefficient function for total system emission
     else:
         raise ValueError('Invalid obj_mode: %s' % obj_mode)
 
@@ -638,7 +663,7 @@ def gen_scenario(fm, hwp_pool_effect_value=1.0, displacement_effect=1.0, release
 
 
 
-def run_scenario(fm, hwp_pool_effect_value, displacement_effect, release_immediately_value, case_study, obj_mode, scenario_name='no_cons', solver=ws3.opt.SOLVER_PULP):
+def run_scenario(fm, clt_percentage, hwp_pool_effect_value, displacement_effect, release_immediately_value, case_study, obj_mode, scenario_name='no_cons', solver=ws3.opt.SOLVER_PULP):
     import gurobipy as grb
     initial_inv_equit = 869737. #ha
     initial_gs_equit = 106582957.  #m3   
@@ -657,15 +682,13 @@ def run_scenario(fm, hwp_pool_effect_value, displacement_effect, release_immedia
 
     if scenario_name == 'no_cons': 
         # test scenario : 
-        print('running test scenario')
-        # cgen_hv = {'lb':{1:1}, 'ub':{1:200}}
+        print('running no_cons scenario')
     
     elif scenario_name == 'evenflow_cons': 
         # no_cons scenario : 
-        print('running no constraints scenario')
+        print('running even flow constraints scenario')
         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
-        # cgen_ha = {'lb':{1:0}, 'ub':{1:0}}
  
     # Red Chris Scenarios
     elif scenario_name == 'bau_redchrs': 
@@ -886,6 +909,7 @@ def run_scenario(fm, hwp_pool_effect_value, displacement_effect, release_immedia
         assert False # bad scenario name
     
     p = gen_scenario(fm=fm, 
+                     clt_percentage=clt_percentage,
                      hwp_pool_effect_value=hwp_pool_effect_value,
                      displacement_effect=displacement_effect,
                      release_immediately_value=release_immediately_value,
@@ -915,13 +939,13 @@ def run_scenario(fm, hwp_pool_effect_value, displacement_effect, release_immedia
                         compile_c_ycomps=True)
     
     if obj_mode == 'max_hv' or obj_mode == 'min_ha':
-        df = compile_scenario(fm)
+        df = compile_scenario(fm, case_study, obj_mode, scenario_name)
         plot_scenario(df, case_study, obj_mode, scenario_name)
     elif obj_mode == 'max_st':
-        df = compile_scenario_maxstock(fm)
+        df = compile_scenario_maxstock(fm, case_study, obj_mode, scenario_name)
         plot_scenario_maxstock(df, case_study, obj_mode, scenario_name) 
     elif obj_mode == 'min_em':
-        df = compile_scenario_minemission(fm)
+        df = compile_scenario_minemission(fm, case_study, obj_mode, scenario_name)
         plot_scenario_minemission(df, case_study, obj_mode, scenario_name)
     else:
         raise ValueError('Invalid obj_mode: %s' % obj_mode) 
@@ -1073,18 +1097,18 @@ def run_cbm(df_carbon_stock, df_carbon_emission, df_carbon_emission_immed, df_em
 
 def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, case_study, obj_mode):   
     decay_rates = {'plumber':math.log(2.)/35., 'ppaper':math.log(2.)/2.}
-    product_coefficients = {'plumber':0.9, 'ppaper':0.1}
-    product_percentages = {'plumber':0.5, 'ppaper':1.}
+    product_coefficients = {'plumber':0.8, 'ppaper':0.2}
+    product_percentages = {'plumber':1., 'ppaper':1.}
     products = ['plumber', 'ppaper']
-    clt_conversion_rate = 1.
+    clt_conversion_rate = 1.24
     co2_concrete_manu_factor = 298.
     concrete_density = 2400 #kg/m3
     co2_concrete_landfill_factor = 0.00517 * concrete_density
-    sch_alt_scenario = run_scenario(fm, hwp_pool_effect_value, displacement_effect, release_immediately_value, case_study, obj_mode, scenario_name, solver='gurobi')
-    # sch_alt_scenario = run_scenario(fm, hwp_pool_effect_value, displacement_effect, release_immediately_value, case_study, obj_mode, scenario_name) #This uses pulp
+    sch_alt_scenario = run_scenario(fm, clt_percentage, hwp_pool_effect_value, displacement_effect, release_immediately_value, case_study, obj_mode, scenario_name, solver='gurobi')
+    # sch_alt_scenario = run_scenario(fm, clt_percentage, hwp_pool_effect_value, displacement_effect, release_immediately_value, case_study, obj_mode, scenario_name) #This uses pulp
 
-    # df = compile_scenario(fm)
-    # plot_scenario(df)
+    # df = compile_scenario(fm, case_study, obj_mode, scenario_name)
+    # plot_scenario(df, case_study, obj_mode, scenario_name)
     df_carbon_stock = hwp_carbon_stock(fm, products, product_coefficients, product_percentages, decay_rates, hwp_pool_effect_value)
     df_carbon_emission = hwp_carbon_emission(fm, products, product_coefficients, product_percentages, decay_rates, hwp_pool_effect_value)
     df_carbon_emission_immed = hwp_carbon_emission_immed(fm)
@@ -1106,15 +1130,15 @@ def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_ste
 
 def stock_emission_scenario_equivalent(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, displacement_effect, hwp_pool_effect_value, release_immediately_value, case_study, obj_mode):   
     decay_rates = {'plumber':math.log(2.)/35., 'ppaper':math.log(2.)/2.}
-    product_coefficients = {'plumber':0.9, 'ppaper':0.1}
-    product_percentages = {'plumber':0.5, 'ppaper':1.}
+    product_coefficients = {'plumber':0.8, 'ppaper':0.2}
+    product_percentages = {'plumber':1., 'ppaper':1.}
     products = ['plumber', 'ppaper']
-    clt_conversion_rate = 1.
+    clt_conversion_rate = 1.24
     co2_concrete_manu_factor = 298.
     concrete_density = 2.40 #ton/m3
     co2_concrete_landfill_factor = 0.00517 * concrete_density
     sch_base_scenari = schedule_harvest_areacontrol(fm, max_harvest) #equivalent harvesting with heuristics
-    df = compile_scenario(fm)
+    df = compile_scenario(fm, case_study, obj_mode, scenario_name)
     plot_scenario(df, case_study, obj_mode, scenario_name)
     df_carbon_stock = hwp_carbon_stock(fm, products, product_coefficients, product_percentages, decay_rates, hwp_pool_effect_value)
     df_carbon_emission = hwp_carbon_emission(fm, products, product_coefficients, product_percentages, decay_rates, hwp_pool_effect_value)
@@ -1273,9 +1297,41 @@ def compare_kpi_species(portion_10_alt , shannon_10_alt, portion_10_base, shanno
    
 
 
+def compare_kpi_socioeconomic(kpi_socio_alt, kpi_eco_alt, kpi_socio_base, kpi_eco_base):
+    """
+    Compare the socioeconomic KPIs between the alternative and baseline scenarios.
+    """
+    socio_diff = kpi_socio_alt - kpi_socio_base
+    eco_diff = kpi_eco_alt - kpi_eco_base
+    
+    print("Comparison of Socioeconomic KPIs:")
+    print("------------------------------------------------")
+    print(f"Job Creation Difference (Social Indicator): {socio_diff}")
+    print(f"Provincial Revenue Difference (Economic Indicator): {eco_diff}")
+    print("------------------------------------------------")
+    
+    if socio_diff > 0:
+        print("Alternative scenario creates more jobs than the baseline.")
+    elif socio_diff < 0:
+        print("Baseline scenario creates more jobs than the alternative.")
+    else:
+        print("Both scenarios create the same number of jobs.")
+        
+    if eco_diff > 0:
+        print("Alternative scenario generates more provincial revenue than the baseline.")
+    elif eco_diff < 0:
+        print("Baseline scenario generates more provincial revenue than the alternative.")
+    else:
+        print("Both scenarios generate the same amount of provincial revenue.")
+    
+    return socio_diff, eco_diff
+    
+    
+
+
 def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, case_study, obj_mode, pickle_output_base,  
                   pickle_output_alter):
-    from util_opt import stock_emission_scenario, plot_scenarios, scenario_dif, stock_emission_scenario_equivalent, compare_kpi_age
+    from util_opt import stock_emission_scenario, plot_scenarios, scenario_dif, stock_emission_scenario_equivalent, compare_kpi_age, kpi_socioeconomic, compare_kpi_socioeconomic
 
 
     # Create a folder for pickle outputs
@@ -1306,6 +1362,7 @@ def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, ma
     
     kpi_age_alt = kpi_age(fm, case_study, obj_mode, scenario_name)
     portion_10_alt , shannon_10_alt = kpi_species(fm, case_study, obj_mode, scenario_name)
+    kpi_socio_alt, kpi_eco_alt = kpi_socioeconomic(fm)
 
     # Create a folder for csv file outputs
     csv_folder_path = os.path.join('./outputs/csv', case_study)
@@ -1356,6 +1413,7 @@ def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, ma
 
     kpi_age_base = kpi_age(fm, case_study, obj_mode, scenario_name)
     portion_10_base , shannon_10_base = kpi_species(fm, case_study, obj_mode, scenario_name)
+    kpi_socio_base, kpi_eco_base = kpi_socioeconomic(fm)
 
     # Save cbm_output_4 as CSV
     cbm_output_4_df = pd.DataFrame(cbm_output_4)
@@ -1367,11 +1425,15 @@ def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, ma
     plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_steps, case_study, obj_mode)
     
     # Scenario difference plot
+    print("---------------------------------------------------------------------------------------")
     dif_plot = scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps, case_study, obj_mode)
 
     compare_kpi_age(kpi_age_base, kpi_age_alt, case_study, obj_mode)
 
     compare_kpi_species(portion_10_alt , shannon_10_alt, portion_10_base, shannon_10_base, case_study, obj_mode)
+
+    compare_kpi_socioeconomic(kpi_socio_alt, kpi_eco_alt, kpi_socio_base, kpi_eco_base)
+    print("---------------------------------------------------------------------------------------")
 
 
 
@@ -2593,6 +2655,30 @@ def kpi_species(fm, case_study, obj_mode, scenario_name, base_path='.'):
     
     print(f"Pie Charts for Time Periods 0 and 10 saved to {file_path}")
     return portion_10_named, shannon_10
+
+
+
+
+def kpi_socioeconomic(fm, util=0.85):
+    """
+    Calculate the job creation (scocial) and provincial government revenues (economic)
+based on the total harvested volume 
+    """
+    job_creation_2021 = 55715.
+    bc_revenue_2021 = 1900000.
+    harvest_volume_2021 = 52700000
+
+    socio_coef = job_creation_2021 / harvest_volume_2021
+    eco_coef = bc_revenue_2021 / harvest_volume_2021    
+    
+    socio_indicator = int(sum(fm.compile_product(i, f'totvol * {util}') * socio_coef for i in range(1,11)))
+    eco_indicator = int(sum(fm.compile_product(i, f'totvol * {util}') * eco_coef for i in range(1,11)))
+
+
+    print('The scocial indicator (the number of job creation) is: ', socio_indicator)
+    print('The economic indicator (the provincial government revenues) is: ', eco_indicator)       
+
+    return socio_indicator, eco_indicator
 
 
 ################################################################
