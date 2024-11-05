@@ -66,26 +66,26 @@ def schedule_harvest_areacontrol(fm, max_harvest=1., period=None, acode='harvest
 # HWP effect
 ################################################
 
-def calculate_initial_c_value_stock(fm, i, product_coefficient, util=0.85):
+def calculate_initial_c_value_stock(fm, i, product_coefficient, product_clt_percentage, util=0.85):
     """
     Calculate carbon stock for harvested wood products for period 1.
     """
-    return fm.compile_product(i, f'totvol * {product_coefficient} * {util}')  * 460 * 0.5  / fm.period_length
+    return fm.compile_product(i, f'totvol * {product_coefficient} * {product_clt_percentage} * {util}')  * 460 * 0.5  / fm.period_length
     
 
-def calculate_c_value_stock(fm, i, product_coefficient, decay_rate, util=0.85):      
+def calculate_c_value_stock(fm, i, product_coefficient, decay_rate, product_clt_percentage, util=0.85):      
     """
     Calculate carbon stock for harvested wood products for period `i`.
     """
     period = math.ceil(i / fm.period_length)
     return (
-        sum(fm.compile_product(period, f'totvol * {product_coefficient}  * {util}') / fm.period_length * (1 - decay_rate)**(i - j)
+        sum(fm.compile_product(period, f'totvol * {product_coefficient} * {product_clt_percentage} * {util}') / fm.period_length * (1 - decay_rate)**(i - j)
         for j in range(1, i + 1)
         ) * 460 * 0.5 
     )
     
 
-def hwp_carbon_stock(fm, products, product_coefficients, decay_rates, hwp_pool_effect_value):
+def hwp_carbon_stock(fm, products, product_coefficients, product_clt_percentages, decay_rates, hwp_pool_effect_value):
     """
     Compile periodic harvested wood products carbon stocks data.
     """
@@ -96,29 +96,25 @@ def hwp_carbon_stock(fm, products, product_coefficients, decay_rates, hwp_pool_e
         co2_values_stock = []
         for product in products:
             product_coefficient = product_coefficients[product]
+            product_clt_percentage = product_clt_percentages[product]
             decay_rate = decay_rates[product]            
             if i == 0:
                 co2_values_stock.append(0)
             if i == 1:
-                co2_values_stock.append(hwp_pool_effect_value * calculate_initial_c_value_stock(fm, i, product_coefficient))
+                co2_values_stock.append(hwp_pool_effect_value * calculate_initial_c_value_stock(fm, i, product_coefficient, product_clt_percentage))
             else:
-                co2_values_stock.append(hwp_pool_effect_value * calculate_c_value_stock(fm, i, product_coefficient, decay_rate))
+                co2_values_stock.append(hwp_pool_effect_value * calculate_c_value_stock(fm, i, product_coefficient, decay_rate, product_clt_percentage))
         co2_value_stock = sum(co2_values_stock) / 1000
         data_carbon_stock['period'].append(period_value)
         data_carbon_stock['co2_stock'].append(co2_value_stock)    
     df_carbon_stock = pd.DataFrame(data_carbon_stock)    
     return df_carbon_stock
 
-def calculate_initial_co2_value_emission(fm, i, product_coefficient, decay_rate, util=0.85):
-    return fm.compile_product(i, f'totvol * {product_coefficient} * {util}') * 460 * 0.5 * (44 / 12) * decay_rate  / fm.period_length
 
-def calculate_initial_co2_value_emission_residue(fm, i, util=0.85):
-    return fm.compile_product(i, f'totvol  * {1-util}') * 460 * 0.5 * 44 / 12  / fm.period_length
-
-def calculate_co2_value_emission(fm, i, product_coefficient, decay_rate, util=0.85):
+def calculate_co2_value_emission(fm, i, product_coefficient, decay_rate, product_clt_percentage, util=0.85):
     period = math.ceil(i / fm.period_length)
     return (
-        sum(fm.compile_product(period, f'totvol * {product_coefficient}* {util}') *  (1 - decay_rate)**(i - j) / fm.period_length
+        sum(fm.compile_product(period, f'totvol * {product_coefficient} * {product_clt_percentage} * {util}') *  (1 - decay_rate)**(i - j) / fm.period_length
         for j in range(1, i + 1)
         ) * 460 * 0.5 * 44 / 12 * decay_rate 
  )
@@ -126,11 +122,17 @@ def calculate_co2_value_emission(fm, i, product_coefficient, decay_rate, util=0.
 def calculate_co2_value_emission_residue(fm, i, util=0.85):
     period = math.ceil(i / fm.period_length)
     return (
-        fm.compile_product(period, f'totvol * {1-util}') * 460 * 0.5 * (44 / 12) / fm.period_length
+        fm.compile_product(period, f'totvol * {1- util}') * 460 * 0.5 * (44 / 12) / fm.period_length
  )
 
+def calculate_initial_co2_value_emission(fm, i, product_coefficient, decay_rate, product_clt_percentage, util=0.85):
+    return fm.compile_product(i, f'totvol * {product_coefficient} * {product_clt_percentage} * {util}') * 460 * 0.5 * (44 / 12) * decay_rate  / fm.period_length
+
+def calculate_initial_co2_value_emission_residue(fm, i, util=0.85):
+    return fm.compile_product(i, f'totvol  * {util}') * 460 * 0.5 * 44 / 12  / fm.period_length
+
 # Emission (by year)
-def hwp_carbon_emission(fm, products, product_coefficients, decay_rates, hwp_pool_effect_value):
+def hwp_carbon_emission(fm, products, product_coefficients, product_clt_percentages, decay_rates, hwp_pool_effect_value):
     from util_opt import calculate_co2_value_emission, calculate_initial_co2_value_emission, calculate_co2_value_emission_residue, calculate_initial_co2_value_emission_residue
     data_carbon_emission = {'period': [], 'co2_emission': []}    
     for i in range(0, fm.horizon * 10  + 1):
@@ -138,13 +140,14 @@ def hwp_carbon_emission(fm, products, product_coefficients, decay_rates, hwp_poo
         co2_values_emission = []        
         for product in products:
             product_coefficient = product_coefficients[product]
+            product_clt_percentage = product_clt_percentages[product]
             decay_rate = decay_rates[product]            
             if i == 0:
                 co2_values_emission.append(0)
             elif i == 1:
-                co2_values_emission.append(hwp_pool_effect_value * (calculate_initial_co2_value_emission(fm, i, product_coefficient, decay_rate) + calculate_initial_co2_value_emission_residue(fm, i) ))
+                co2_values_emission.append(hwp_pool_effect_value * (calculate_initial_co2_value_emission(fm, i, product_coefficient, decay_rate, product_clt_percentage) + calculate_initial_co2_value_emission_residue(fm, i) ))
             else:
-                co2_values_emission.append(hwp_pool_effect_value * (calculate_co2_value_emission(fm, i, product_coefficient, decay_rate) + calculate_co2_value_emission_residue(fm, i)))
+                co2_values_emission.append(hwp_pool_effect_value * (calculate_co2_value_emission(fm, i, product_coefficient, decay_rate, product_clt_percentage) + calculate_co2_value_emission_residue(fm, i)))
         
         
         co2_value_emission = sum(co2_values_emission) / 1000
@@ -174,13 +177,13 @@ def hwp_carbon_emission_immed(fm):
 # Displacement effect
 ################################################
 # Displacement of concrete manufacturing
-def calculate_concrete_volume(fm, i, product_coefficients, credibility, clt_conversion_rate, util=0.85):            
+def calculate_concrete_volume(fm, i, product_coefficients, clt_percentage, credibility, clt_conversion_rate, util=0.85):            
     period = math.ceil(i / fm.period_length)
-    return fm.compile_product(period,'totvol') * product_coefficients['pclt'] * credibility * util / clt_conversion_rate 
+    return fm.compile_product(period,'totvol') * product_coefficients['plumber'] * clt_percentage * credibility * util / clt_conversion_rate 
 
 
 # Iterate through the rows of the DataFrame
-def emission_concrete_manu(fm, product_coefficients, credibility, clt_conversion_rate, co2_concrete_manu_factor, displacement_effect):
+def emission_concrete_manu(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_manu_factor, displacement_effect):
     from util_opt import  calculate_concrete_volume
     df_emission_concrete_manu = {'period': [], 'co2_concrete_manu': []}
     for i in range(0, fm.horizon *10   + 1 ):
@@ -189,7 +192,7 @@ def emission_concrete_manu(fm, product_coefficients, credibility, clt_conversion
         if i == 0:
             co2_concrete_manu = 0
         else:
-            concrete_volume = calculate_concrete_volume(fm, i, product_coefficients, credibility, clt_conversion_rate)
+            concrete_volume = calculate_concrete_volume(fm, i, product_coefficients, clt_percentage, credibility, clt_conversion_rate)
             co2_concrete_manu = concrete_volume * co2_concrete_manu_factor / (fm.period_length * 1000)
         df_emission_concrete_manu['period'].append(period_value)
         df_emission_concrete_manu['co2_concrete_manu'].append(co2_concrete_manu)
@@ -199,7 +202,7 @@ def emission_concrete_manu(fm, product_coefficients, credibility, clt_conversion
 
 
 # Displacement of concrete landfill
-def emission_concrete_landfill(fm, product_coefficients, credibility, clt_conversion_rate, co2_concrete_landfill_factor, displacement_effect):
+def emission_concrete_landfill(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_landfill_factor, displacement_effect):
     from util_opt import  calculate_concrete_volume
     df_emission_concrete_landfill = {'period': [], 'co2_concrete_landfill': []}   
     # Iterate through the rows of the DataFrame
@@ -209,7 +212,7 @@ def emission_concrete_landfill(fm, product_coefficients, credibility, clt_conver
         if i == 0:
             co2_concrete_landfill = 0
         else:
-            concrete_volume = calculate_concrete_volume(fm, i, product_coefficients, credibility, clt_conversion_rate)
+            concrete_volume = calculate_concrete_volume(fm, i, product_coefficients, clt_percentage, credibility, clt_conversion_rate)
             co2_concrete_landfill = concrete_volume * co2_concrete_landfill_factor  / (fm.period_length * 1000)                       
         df_emission_concrete_landfill['period'].append(period_value)
         df_emission_concrete_landfill['co2_concrete_landfill'].append(co2_concrete_landfill)    
@@ -448,21 +451,21 @@ def plot_scenario_minemission(df, case_study, obj_mode, scenario_name):
 # Optimization
 ################################################
 
-def cmp_c_ss(fm, path, clt_percentage, hwp_pool_effect_value, expr, yname, half_life_solid_wood=30, half_life_paper=2, half_life_clt= float('inf'), proportion_solid_wood=0.8, util=0.85, mask=None):
+def cmp_c_ss(fm, path, hwp_pool_effect_value, expr, yname, half_life_solid_wood=30, half_life_paper=2, proportion_solid_wood=0.8, util=0.85, mask=None):
     """
     Compile objective function coefficient for total system carbon stock indicators (given ForestModel instance, 
     leaf-to-root-node path, and expression to evaluate).
     """
     k_wood = math.log(2) / half_life_solid_wood  # Decay rate for solid wood products (30-year half-life)
     k_paper = math.log(2) / half_life_paper  # Decay rate for paper (2-year half-life)
-    k_clt = math.log(2) / half_life_clt  # Decay rate for clt (INF half-life)
+    # k_wood = 0
+    # k_paper = 0
     wood_density = 460 #kg/m3
     carbon_content = 0.5
     result = 0.
     sum = 0.
     hwp_accu_wood = 0.
     hwp_accu_paper = 0.
-    hwp_accu_clt = 0.
     ecosystem = 0.
     for t, n in enumerate(path, start=1):        
         d = n.data()    
@@ -470,13 +473,11 @@ def cmp_c_ss(fm, path, clt_percentage, hwp_pool_effect_value, expr, yname, half_
             result_hwp = fm.compile_product(t, 'totvol', d['acode'], [d['dtk']], d['age'], coeff=False) * wood_density * carbon_content/1000
         else:
             result_hwp = 0     
-        hwp_accu_wood  = hwp_accu_wood * (1-k_wood)**10 + result_hwp * util * proportion_solid_wood * (1-clt_percentage)
+        hwp_accu_wood  = hwp_accu_wood * (1-k_wood)**10 + result_hwp * util * proportion_solid_wood
         hwp_accu_paper = hwp_accu_paper * (1-k_paper)**10 + result_hwp * util * (1- proportion_solid_wood) 
-        hwp_accu_clt = hwp_accu_clt * (1-k_clt)**10 + result_hwp * util * clt_percentage * proportion_solid_wood 
-
         
         ecosystem = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
-        result += hwp_pool_effect_value * (hwp_accu_wood + hwp_accu_paper + hwp_accu_clt) + ecosystem
+        result += hwp_pool_effect_value * (hwp_accu_wood + hwp_accu_paper) + ecosystem
 
     return result
 
@@ -503,6 +504,7 @@ def cmp_c_se(fm, path, clt_percentage, hwp_pool_effect_value, displacement_effec
     hwp_accu_wood = 0.
     hwp_accu_paper = 0.
     ecosystem = 0.
+    clt_percentage = 0.5
     credibility = 1.
     clt_conversion_rate = 1.24
     co2_concrete_manu_accu = 0.
@@ -521,7 +523,7 @@ def cmp_c_se(fm, path, clt_percentage, hwp_pool_effect_value, displacement_effec
         else:
             result_hwp = 0.  
             concrete_volume = 0.
-        hwp_accu_wood  = hwp_accu_wood * (1-k_wood)**10 + result_hwp  * util * proportion_solid_wood * (1 - clt_percentage)
+        hwp_accu_wood  = hwp_accu_wood * (1-k_wood)**10 + result_hwp  * util * proportion_solid_wood
         hwp_accu_paper = hwp_accu_paper * (1-k_paper)**10 + result_hwp * util * (1- proportion_solid_wood) 
         hwps_residue_pool = result_hwp * (1.0 - util)
 
@@ -630,7 +632,7 @@ def gen_scenario(fm, clt_percentage=1.0,hwp_pool_effect_value=1.0, displacement_
     elif obj_mode == 'min_ha':
         coeff_funcs['z'] = partial(cmp_c_z, expr=zexpr) # define objective function coefficient function for max_hv and min_ha
     elif obj_mode == 'max_st':
-        coeff_funcs['z'] = partial(cmp_c_ss, clt_percentage=clt_percentage, hwp_pool_effect_value=hwp_pool_effect_value, expr=zexpr, yname=cp_name) # define objective function coefficient function for total system carbon stock
+        coeff_funcs['z'] = partial(cmp_c_ss, hwp_pool_effect_value=hwp_pool_effect_value, expr=zexpr, yname=cp_name) # define objective function coefficient function for total system carbon stock
     elif obj_mode == 'min_em':
         coeff_funcs['z'] = partial(cmp_c_se, clt_percentage=clt_percentage, hwp_pool_effect_value=hwp_pool_effect_value, displacement_effect=displacement_effect, release_immediately_value=release_immediately_value,expr=zexpr, yname=ce_name) # define objective function coefficient function for total system emission
     else:
@@ -1100,9 +1102,10 @@ def run_cbm(df_carbon_stock, df_carbon_emission, df_carbon_emission_immed, df_em
 
 
 def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_steps, scenario_name, displacement_effect, hwp_pool_effect_value, release_immediately_value, case_study, obj_mode):   
-    decay_rates = {'plumber':math.log(2.)/35., 'ppaper':math.log(2.)/2., 'pclt': math.log(2.)/float('inf')}
-    product_coefficients = {'plumber': (1-0.2) * (1 - clt_percentage), 'ppaper':0.2, 'pclt': (1-0.2)*clt_percentage}
-    products = ['plumber', 'ppaper', 'pclt']
+    decay_rates = {'plumber':math.log(2.)/35., 'ppaper':math.log(2.)/2.}
+    product_coefficients = {'plumber': 1-((1-0.2)*clt_percentage), 'ppaper':0.2, 'pclt': (1-0.2)*clt_percentage}
+    product_clt_percentages = {'plumber':1 - clt_percentage, 'ppaper':1., 'pclt':0}
+    products = ['plumber', 'ppaper']
     clt_conversion_rate = 1.24 #convert 1.21 lumber to 1 CLT
     co2_concrete_manu_factor = 298.
     concrete_density = 2400 #kg/m3
@@ -1112,12 +1115,12 @@ def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_ste
 
     # df = compile_scenario(fm, case_study, obj_mode, scenario_name)
     # plot_scenario(df, case_study, obj_mode, scenario_name)
-    df_carbon_stock = hwp_carbon_stock(fm, products, product_coefficients, decay_rates, hwp_pool_effect_value)
-    df_carbon_emission = hwp_carbon_emission(fm, products, product_coefficients, decay_rates, hwp_pool_effect_value)
+    df_carbon_stock = hwp_carbon_stock(fm, products, product_coefficients, product_clt_percentages, decay_rates, hwp_pool_effect_value)
+    df_carbon_emission = hwp_carbon_emission(fm, products, product_coefficients, product_clt_percentages, decay_rates, hwp_pool_effect_value)
     df_carbon_emission_immed = hwp_carbon_emission_immed(fm)
 
-    df_emission_concrete_manu = emission_concrete_manu(fm, product_coefficients, credibility, clt_conversion_rate, co2_concrete_manu_factor, displacement_effect)
-    df_emission_concrete_landfill = emission_concrete_landfill(fm, product_coefficients, credibility, clt_conversion_rate, co2_concrete_landfill_factor, displacement_effect)
+    df_emission_concrete_manu = emission_concrete_manu(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_manu_factor, displacement_effect)
+    df_emission_concrete_landfill = emission_concrete_landfill(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_landfill_factor, displacement_effect)
     disturbance_type_mapping = [{'user_dist_type': 'harvest', 'default_dist_type': 'Clearcut harvesting without salvage'},
                             {'user_dist_type': 'fire', 'default_dist_type': 'Wildfire'}]
     for dtype_key in fm.dtypes:
@@ -1134,7 +1137,8 @@ def stock_emission_scenario(fm, clt_percentage, credibility, budget_input, n_ste
 def stock_emission_scenario_equivalent(fm, clt_percentage, credibility, budget_input, n_steps, max_harvest, displacement_effect, hwp_pool_effect_value, release_immediately_value, case_study, obj_mode):   
     decay_rates = {'plumber':math.log(2.)/35., 'ppaper':math.log(2.)/2.}
     product_coefficients = {'plumber':0.8, 'ppaper':0.2}
-    products = ['plumber', 'ppaper', 'pclt']
+    product_clt_percentages = {'plumber':1 - clt_percentage, 'ppaper':1.}
+    products = ['plumber', 'ppaper']
     clt_conversion_rate = 1.24  #convert 1.21 lumber to 1 CLT
     co2_concrete_manu_factor = 298.
     concrete_density = 2400 #kg/m3
@@ -1142,11 +1146,11 @@ def stock_emission_scenario_equivalent(fm, clt_percentage, credibility, budget_i
     sch_base_scenari = schedule_harvest_areacontrol(fm, max_harvest) #equivalent harvesting with heuristics
     df = compile_scenario(fm, case_study, obj_mode, scenario_name)
     plot_scenario(df, case_study, obj_mode, scenario_name)
-    df_carbon_stock = hwp_carbon_stock(fm, products, product_coefficients, decay_rates, hwp_pool_effect_value)
-    df_carbon_emission = hwp_carbon_emission(fm, products, product_coefficients, decay_rates, hwp_pool_effect_value)
+    df_carbon_stock = hwp_carbon_stock(fm, products, product_coefficients, product_clt_percentages, decay_rates, hwp_pool_effect_value)
+    df_carbon_emission = hwp_carbon_emission(fm, products, product_coefficients, product_clt_percentages, decay_rates, hwp_pool_effect_value)
     df_carbon_emission_immed = hwp_carbon_emission_immed(fm)
-    df_emission_concrete_manu = emission_concrete_manu(fm, product_coefficients, credibility, clt_conversion_rate, co2_concrete_manu_factor, displacement_effect)
-    df_emission_concrete_landfill = emission_concrete_landfill(fm, product_coefficients, credibility, clt_conversion_rate, co2_concrete_landfill_factor, displacement_effect)
+    df_emission_concrete_manu = emission_concrete_manu(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_manu_factor, displacement_effect)
+    df_emission_concrete_landfill = emission_concrete_landfill(fm, product_coefficients, clt_percentage, credibility, clt_conversion_rate, co2_concrete_landfill_factor, displacement_effect)
     disturbance_type_mapping = [{'user_dist_type': 'harvest', 'default_dist_type': 'Clearcut harvesting without salvage'},
                             {'user_dist_type': 'fire', 'default_dist_type': 'Wildfire'}]
     for dtype_key in fm.dtypes:
@@ -1375,9 +1379,6 @@ def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, ma
     cbm_output_2_file = os.path.join(csv_folder_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_2.csv')
     cbm_output_2_df.to_csv(cbm_output_2_file, index=False)
     # print(cbm_output_2)
-    cbm_output_1_df = pd.DataFrame(cbm_output_1)
-    cbm_output_1_file = os.path.join(csv_folder_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_1.csv')
-    cbm_output_1_df.to_csv(cbm_output_1_file, index=False)
 
     fm.reset()
 
@@ -1425,9 +1426,6 @@ def results_scenarios(fm, clt_percentage, credibility, budget_input, n_steps, ma
     cbm_output_4_file = os.path.join(csv_folder_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_4.csv')
     cbm_output_4_df.to_csv(cbm_output_4_file, index=False)
     # print(cbm_output_4)
-    cbm_output_3_df = pd.DataFrame(cbm_output_3)
-    cbm_output_3_file = os.path.join(csv_folder_path, f'{case_study}_{obj_mode}_{scenario_name}_cbm_output_3.csv')
-    cbm_output_3_df.to_csv(cbm_output_3_file, index=False)
 
     # Plot scenarios
     plot_scenarios(cbm_output_1, cbm_output_2, cbm_output_3, cbm_output_4, n_steps, case_study, obj_mode)
