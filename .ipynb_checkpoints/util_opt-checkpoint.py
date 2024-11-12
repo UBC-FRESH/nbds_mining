@@ -873,7 +873,7 @@ def run_scenario(fm, clt_percentage, hwp_pool_effect_value, displacement_effect,
         print('running the scenario for the Equity Silver mining site (50%_AAC),')
         cflw_ha = ({p:0.05 for p in fm.periods}, 1)
         cflw_hv = ({p:0.05 for p in fm.periods}, 1)
-        cgen_hv = {'lb':{1:0.5*0.5*aac_equity}, 'ub':{1:0.5*0.*aac_equity+1}} 
+        cgen_hv = {'lb':{1:0.5*0.5*aac_equity}, 'ub':{1:0.5*0.5*aac_equity+1}} 
         cgen_gs = {'lb':{10:initial_gs_equit*0.9}, 'ub':{10:initial_gs_equit*1000}} #Not less than 90% of initial growing stock   
     elif scenario_name == 'eqtslvr_AAC_40%': 
         # Alternative scenario for the Equity Silver mining site (40%_AAC): 
