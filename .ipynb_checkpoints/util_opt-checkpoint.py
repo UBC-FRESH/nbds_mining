@@ -1208,10 +1208,15 @@ def scenario_dif(cbm_output_2, cbm_output_4, budget_input, n_steps, case_study, 
     ax.set_title('Net emission difference between base and alternative scenarios')
     ax.set_xlabel('Year')
     ax.set_ylabel('Net Carbon emission diffrence')   
-    dollar_per_ton = abs(budget_input / dif_scenario.iloc[:25]['Net emission'].sum())
-    print( "Net emission difference", dif_scenario.iloc[:25]['Net emission'].sum())
-    print( "Net emission base scenario", cbm_output_2.iloc[:25]['Net emission'].sum())
-    print( "Net emission alternative scenario", cbm_output_4.iloc[:25]['Net emission'].sum())    
+    # dollar_per_ton = abs(budget_input / dif_scenario.iloc[:25]['Net emission'].sum()) # Calculate for the next 25 years
+    # print( "Net emission difference", dif_scenario.iloc[:25]['Net emission'].sum())
+    # print( "Net emission base scenario", cbm_output_4.iloc[:25]['Net emission'].sum())
+    # print( "Net emission alternative scenario", cbm_output_2.iloc[:25]['Net emission'].sum())    
+
+    dollar_per_ton = abs(budget_input / dif_scenario['Net emission'].sum()) # Calculate for the next 25 years
+    print( "Net emission difference", dif_scenario['Net emission'].sum())
+    print( "Net emission base scenario", cbm_output_4['Net emission'].sum())
+    print( "Net emission alternative scenario", cbm_output_2['Net emission'].sum()) 
     print('dollar_per_ton is: ', dollar_per_ton)
     plt.savefig(output_file_path)
     return ax
@@ -2494,9 +2499,9 @@ def kpi_age(fm, case_study, obj_mode, scenario_name, base_path='.'):
     
     # Print conclusion about diversity change based on difference
     if old_growth_df['Difference'].sum() < 0:
-        print(f"\nOverall diversity has **decreased** by {old_growth_df['Difference'].sum():.2f} hectares from time period 0 to time period 10.")
+        print(f"\nOld growth has **decreased** by {old_growth_df['Difference'].sum():.2f} hectares from time period 0 to time period 10.")
     else:
-        print(f"\nOverall diversity has **increased** by {old_growth_df['Difference'].sum():.2f} hectares from time period 0 to time period 10.")
+        print(f"\nOld growth has **increased** by {old_growth_df['Difference'].sum():.2f} hectares from time period 0 to time period 10.")
     
     # Plot clustered column chart for old growth areas by species for each time period
     fig, ax = plt.subplots(figsize=(7, 6))
