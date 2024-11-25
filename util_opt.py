@@ -476,7 +476,7 @@ def cmp_c_ss(fm, path, clt_percentage, hwp_pool_effect_value, expr, yname, half_
 
         
         ecosystem = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
-        result += hwp_pool_effect_value * (hwp_accu_wood + hwp_accu_paper + hwp_accu_clt) + ecosystem
+        result = hwp_pool_effect_value * (hwp_accu_wood + hwp_accu_paper + hwp_accu_clt) + ecosystem
 
     return result
 
@@ -535,7 +535,7 @@ def cmp_c_se(fm, path, clt_percentage, hwp_pool_effect_value, displacement_effec
 
 
         
-        net_emissions = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
+        net_emissions = 10 * fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
         
         co2_concrete_manu_accu += concrete_volume * util * co2_concrete_manu_factor / 1000.
         co2_concrete_landfill_accu += concrete_volume * util * co2_concrete_landfill_factor / 1000.

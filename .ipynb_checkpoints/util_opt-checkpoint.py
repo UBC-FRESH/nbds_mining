@@ -476,7 +476,7 @@ def cmp_c_ss(fm, path, clt_percentage, hwp_pool_effect_value, expr, yname, half_
 
         
         ecosystem = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
-        result += hwp_pool_effect_value * (hwp_accu_wood + hwp_accu_paper + hwp_accu_clt) + ecosystem
+        result = hwp_pool_effect_value * (hwp_accu_wood + hwp_accu_paper + hwp_accu_clt) + ecosystem
 
     return result
 
@@ -535,7 +535,7 @@ def cmp_c_se(fm, path, clt_percentage, hwp_pool_effect_value, displacement_effec
 
 
         
-        net_emissions = fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
+        net_emissions = 10 * fm.inventory(t, yname, age=d['_age'], dtype_keys=[d['_dtk']])
         
         co2_concrete_manu_accu += concrete_volume * util * co2_concrete_manu_factor / 1000.
         co2_concrete_landfill_accu += concrete_volume * util * co2_concrete_landfill_factor / 1000.
@@ -1708,7 +1708,7 @@ def compare_ws3_cbm_both(fm, cbm_output, disturbance_type_mapping, biomass_pools
                        'eco_stock': pi[eco_pools].sum(axis=1),
                        'ecosystem_decay_emissions': 44/12 * fi[ecosystem_decay_emissions_pools].sum(axis=1),
                        'gross_growth': 44/12 * -1* fi[GrossGrowth_pools].sum(axis=1),
-                       'net_emissions': 44/12 * ( fi[ecosystem_decay_emissions_pools].sum(axis=1) - fi[GrossGrowth_pools].sum(axis=1)) }).groupby('period').sum().iloc[1::10, :].reset_index()
+                       'net_emissions': ( fi[ecosystem_decay_emissions_pools].sum(axis=1) - fi[GrossGrowth_pools].sum(axis=1)) }).groupby('period').sum().iloc[1::10, :].reset_index()
     df_cbm['period'] = (df_cbm['period'] + 0.9).astype(int)
 
 
