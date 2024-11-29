@@ -2066,6 +2066,7 @@ def plugin_c_curves_both(fm, c_curves_p, c_curves_f):
         # Add the processed mask to the set
         # processed_masks.add(mask)
 
+
 def plugin_c_curves(fm, c_curves_p, c_curves_f):
     # Dictionary to track registered curves for each dtype_key
     # Define Carbon Pools
