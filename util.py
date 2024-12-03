@@ -9,6 +9,7 @@ import os
 import ws3.opt
 import pickle
 import numpy as np
+from math import pi
 
 
 
@@ -2885,3 +2886,63 @@ def bootstrap_ogi(fm, tvy_name='totvol', ra1_type='cmai', ra2_type='cyld', rc1=[
         _mask = (mask[0], '?', dtk[2], dtk[3], dtk[4], dtk[5] )
         fm.yields.append((_mask, 'a', [(yname, c)]))
         dt.add_ycomp('a', yname, c)
+
+
+
+################################################################
+# Plot results
+################################################################
+def generate_radar_chart(data, output_dir, case_study, obj_mode):
+    """
+    Generate a radar chart from the provided data, save it as an SVG file in a case-study-specific directory, 
+    and include case study and objective mode in the file name.
+
+    Parameters:
+        data (dict): A dictionary where the keys are column names and the values are lists of data.
+        output_dir (str): The base directory where the files will be saved.
+        case_study (str): The name of the case study (used to create the folder and as part of the file name).
+        obj_mode (str): The objective mode (used as part of the file name).
+    """
+    case_study_dir = os.path.join(output_dir, case_study)
+    os.makedirs(case_study_dir, exist_ok=True)
+
+    df = pd.DataFrame(data)
+
+    for column in df.columns[1:]:
+        max_val = df[column].max()
+        min_val = df[column].min()
+        df[column] = df[column].apply(lambda x: (x - min_val) / (max_val - min_val))
+
+    categories = list(df.columns[1:])
+    N = len(categories)
+    angles = [n / float(N) * 2 * pi for n in range(N)]
+    angles += angles[:1]  
+
+    fig, ax = plt.subplots(figsize=(10, 10), subplot_kw=dict(polar=True))
+
+    # Plot each scenario
+    for i, row in df.iterrows():
+        values = row[1:].tolist()
+        values += values[:1]  
+        if row["Scenarios"] == "Baseline":
+            ax.plot(angles, values, label=row["Scenarios"], color="black", linewidth=2)
+            ax.fill(angles, values, color="black", alpha=0.2)  
+        else:
+            ax.plot(angles, values, label=row["Scenarios"], linewidth=2)
+            ax.fill(angles, values, alpha=0.25)
+
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(categories, fontsize=12)
+    ax.yaxis.grid(True)
+    ax.yaxis.set_tick_params(labelsize=10)
+    plt.title(f"{obj_mode}", fontsize=16, pad=30)
+
+    plt.legend(loc='upper right', bbox_to_anchor=(1.3, 1.1), fontsize=10)
+
+    plt.tight_layout()
+
+    file_name = f"{case_study}_{obj_mode}_radar_chart.svg"
+    file_path = os.path.join(case_study_dir, file_name)
+    plt.savefig(file_path, format='svg')  
+    plt.close(fig) 
+    print(f"Chart saved at: {file_path}")
