@@ -2892,7 +2892,7 @@ def bootstrap_ogi(fm, tvy_name='totvol', ra1_type='cmai', ra2_type='cyld', rc1=[
 ################################################################
 # Plot results
 ################################################################
-def generate_radar_chart(data, output_dir, case_study, obj_mode):
+def generate_radar_chart(data, case_study, obj_mode, output_dir="./plots/fig"):
     """
     Generate a radar chart from the provided data, save it as an SVG file in a case-study-specific directory, 
     and include case study and objective mode in the file name.
@@ -2943,6 +2943,108 @@ def generate_radar_chart(data, output_dir, case_study, obj_mode):
 
     file_name = f"{case_study}_{obj_mode}_radar_chart.svg"
     file_path = os.path.join(case_study_dir, file_name)
-    plt.savefig(file_path, format='svg')  
+    plt.savefig(file_path, format='svg') 
+    plt.show()
     plt.close(fig) 
     print(f"Chart saved at: {file_path}")
+
+def generate_subplots_radar_chart(case_study, obj_modes, data_sets):
+    """
+    Generate a radar chart with 4 subplots for each obj_mode of the selected case study.
+    """
+    fig, axes = plt.subplots(2, 2, figsize=(14, 12), subplot_kw=dict(polar=True))
+    axes = axes.flatten()  # Flatten for easy iteration
+
+    legend_added = False  # Track if legend has been added
+
+    for i, obj_mode in enumerate(obj_modes):
+        # Construct the key dynamically
+        data_key = f"{case_study}_{obj_mode}".lower()
+
+        ax = axes[i]
+        try:
+            # Access the dataset from the data_sets dictionary
+            data = data_sets[data_key]
+
+            # Convert the data to a DataFrame and normalize values
+            df = pd.DataFrame(data)
+            for column in df.columns[1:]:
+                max_val = df[column].max()
+                min_val = df[column].min()
+                df[column] = df[column].apply(lambda x: (x - min_val) / (max_val - min_val))
+
+            # Prepare angles for radar chart
+            categories = list(df.columns[1:])
+            N = len(categories)
+            angles = [n / float(N) * 2 * pi for n in range(N)]
+            angles += angles[:1]  # Close the circle
+
+            # Plot each scenario
+            for _, row in df.iterrows():
+                values = row[1:].tolist()
+                values += values[:1]
+
+                # Check if the scenario is "baseline"
+                if row['Scenarios'].lower() == "baseline":
+                    ax.plot(angles, values, label=row['Scenarios'], color="black", linewidth=2)
+                else:
+                    ax.plot(angles, values, label=row['Scenarios'])
+                    ax.fill(angles, values, alpha=0.1)
+
+            # Add chart features
+            ax.set_title(obj_mode, fontsize=14, pad=20)
+            ax.set_xticks(angles[:-1])
+            ax.set_xticklabels(categories, fontsize=10)
+            ax.yaxis.grid(True)
+            ax.yaxis.set_tick_params(labelsize=8)
+
+            # Add legend to the first subplot only
+            if not legend_added:
+                ax.legend(loc='upper right', bbox_to_anchor=(1.3, 1.2), fontsize=10)
+                legend_added = True
+        except KeyError:
+            print(f"Dataset for {data_key} not found. Skipping...")
+
+    # Adjust layout and save
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    output_dir = f'./plots/fig/{case_study}'
+    os.makedirs(output_dir, exist_ok=True)
+    file_name = f"{case_study}_radar_subplots.svg"
+    file_path = os.path.join(output_dir, file_name)
+    plt.savefig(file_path, format='svg')
+    plt.show()
+    print(f"Radar chart subplots saved at: {file_path}")
+
+def create_grouped_bar_chart(data, y_label, case_study):
+    # Extract scenarios and objective modes
+    scenarios = data["Scenarios"]
+    modes = list(data.keys())[1:]  # Exclude "Scenarios"
+
+    # Prepare data
+    values = [data[mode] for mode in modes]
+    x = np.arange(len(scenarios))  # X locations for the groups
+    width = 0.8 / len(modes)  # Width of each bar
+
+    # Create the plot
+    fig, ax = plt.subplots(figsize=(14, 6))
+    for i, mode in enumerate(modes):
+        # Extract the i-th mode's values for all scenarios
+        mode_values = [value if value is not None else 0 for value in values[i]]
+        ax.bar(x + i * width, mode_values, width, label=mode)
+
+    # Add labels, title, and legend
+    ax.set_xticks(x + (len(modes) - 1) * width / 2)
+    ax.set_xticklabels(scenarios, rotation=45, ha="right", fontsize=10)
+    ax.set_ylabel(y_label, fontsize=12)
+    ax.legend(title="Objectives", fontsize=9)
+
+    plt.tight_layout()
+    output_dir = f'./plots/fig/{case_study}'
+    os.makedirs(output_dir, exist_ok=True)
+    file_name = f"{case_study}_{y_label}_indicators_subplots.svg"
+    file_path = os.path.join(output_dir, file_name)
+    plt.savefig(file_path, format='svg')
+    plt.show()
+    print(f"Radar chart subplots saved at: {file_path}")
+
+
