@@ -2894,7 +2894,7 @@ def bootstrap_ogi(fm, tvy_name='totvol', ra1_type='cmai', ra2_type='cyld', rc1=[
 ################################################################
 def generate_radar_chart(data, case_study, obj_mode, output_dir="./plots/fig"):
     """
-    Generate a radar chart from the provided data, save it as an SVG file in a case-study-specific directory, 
+    Generate a radar chart from the provided data, save it as an pdf file in a case-study-specific directory, 
     and include case study and objective mode in the file name.
 
     Parameters:
@@ -2941,9 +2941,9 @@ def generate_radar_chart(data, case_study, obj_mode, output_dir="./plots/fig"):
 
     plt.tight_layout()
 
-    file_name = f"{case_study}_{obj_mode}_radar_chart.svg"
+    file_name = f"{case_study}_{obj_mode}_radar_chart.pdf"
     file_path = os.path.join(case_study_dir, file_name)
-    plt.savefig(file_path, format='svg') 
+    plt.savefig(file_path, format='pdf') 
     plt.show()
     plt.close(fig) 
     print(f"Chart saved at: {file_path}")
@@ -3009,9 +3009,9 @@ def generate_subplots_radar_chart(case_study, obj_modes, data_sets):
     plt.tight_layout(rect=[0, 0, 1, 0.95])
     output_dir = f'./plots/fig/{case_study}'
     os.makedirs(output_dir, exist_ok=True)
-    file_name = f"{case_study}_radar_subplots.svg"
+    file_name = f"{case_study}_radar_subplots.pdf"
     file_path = os.path.join(output_dir, file_name)
-    plt.savefig(file_path, format='svg')
+    plt.savefig(file_path, format='pdf')
     plt.show()
     print(f"Radar chart subplots saved at: {file_path}")
 
@@ -3041,9 +3041,9 @@ def create_grouped_bar_chart(data, y_label, case_study):
     plt.tight_layout()
     output_dir = f'./plots/fig/{case_study}'
     os.makedirs(output_dir, exist_ok=True)
-    file_name = f"{case_study}_{y_label}_indicators_subplots.svg"
+    file_name = f"{case_study}_{y_label}_indicators_subplots.pdf"
     file_path = os.path.join(output_dir, file_name)
-    plt.savefig(file_path, format='svg')
+    plt.savefig(file_path, format='pdf')
     plt.show()
     print(f"Radar chart subplots saved at: {file_path}")
 
